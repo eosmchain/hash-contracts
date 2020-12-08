@@ -1,1 +1,0 @@
-/Users/richardchen/Dev/github-src/eosio.cdt/build/bin/eosio-ld CMakeFiles/mgp.bpvoting.dir/src/bpvoting.cpp.obj -o mgp.bpvoting.wasm 
