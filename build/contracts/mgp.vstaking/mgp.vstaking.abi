@@ -1,0 +1,257 @@
+{
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT ",
+    "version": "eosio::abi/1.1",
+    "types": [],
+    "structs": [
+        {
+            "name": "balances_",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "remaining",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "bindaddress",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "address",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "configs2_t",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "data_correction_enabled",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "configs_",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "burn_memo",
+                    "type": "string"
+                },
+                {
+                    "name": "destruction",
+                    "type": "int32"
+                },
+                {
+                    "name": "redeemallow",
+                    "type": "bool"
+                },
+                {
+                    "name": "minpay",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "configure",
+            "base": "",
+            "fields": [
+                {
+                    "name": "burn_memo",
+                    "type": "string"
+                },
+                {
+                    "name": "destruction",
+                    "type": "int32"
+                },
+                {
+                    "name": "redeemallow",
+                    "type": "bool"
+                },
+                {
+                    "name": "minpay",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "delbind",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "address",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "encorrection",
+            "base": "",
+            "fields": [
+                {
+                    "name": "enable_data_correction",
+                    "type": "bool"
+                }
+            ]
+        },
+        {
+            "name": "ethaddressbook_",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "address",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "name": "quota_",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "remaining",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "redeem",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "reloadnum",
+            "base": "",
+            "fields": [
+                {
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "to",
+                    "type": "name"
+                },
+                {
+                    "name": "quant",
+                    "type": "asset"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "bindaddress",
+            "type": "bindaddress",
+            "ricardian_contract": "---\nspec_version: \"0.1.0\"\ntitle: Bind Ethereume address to MGP account\nsummary: 'Bind Ethereume address to MGP account'\nicon: http://127.0.0.1/ricardian_assets/mgp.contracts/icons/\n---\n\nBind Ethereume address to MGP account in the addressbook"
+        },
+        {
+            "name": "configure",
+            "type": "configure",
+            "ricardian_contract": "---\nspec_version: \"0.1.0\"\ntitle: configure ecoshare settings\nsummary: 'Configure EcoShare Settings'\nicon: http://127.0.0.1/ricardian_assets/mgp.contracts/icons/\n---\n\n{{$action.account}} configures the ecoshare settings."
+        },
+        {
+            "name": "delbind",
+            "type": "delbind",
+            "ricardian_contract": "---\nspec_version: \"0.1.0\"\ntitle: delete the binding\nsummary: 'Claim refund on {{nowrap newname}} bid'\nicon: http://127.0.0.1/ricardian_assets/mgp.contracts/icons/\n---\n\nDelete a bindng in addressbook for the initiating account"
+        },
+        {
+            "name": "encorrection",
+            "type": "encorrection",
+            "ricardian_contract": "---\nspec_version: \"0.1.0\"\ntitle: Turn on/off data correction\nsummary: 'Turn on/off data correction'\nicon: http://127.0.0.1/ricardian_assets/mgp.contracts/icons/\n---\n\nTurn on or off the data correction function"
+        },
+        {
+            "name": "redeem",
+            "type": "redeem",
+            "ricardian_contract": "---\nspec_version: \"0.1.0\"\ntitle: redeem\nsummary: '{{nowrap payer}} redeems his or her previously staked tokens'\nicon: http://127.0.0.1/ricardian_assets/mgp.contracts/icons/\n---\n\n{{payer}} redeems staked tokens."
+        },
+        {
+            "name": "reloadnum",
+            "type": "reloadnum",
+            "ricardian_contract": "---\nspec_version: \"0.1.0\"\ntitle: Correct data\nsummary: 'Correct data'\nicon: http://127.0.0.1/ricardian_assets/mgp.contracts/icons/\n---\n\nExecute data correction"
+        }
+    ],
+    "tables": [
+        {
+            "name": "addressbook",
+            "type": "ethaddressbook_",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "balances",
+            "type": "balances_",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "configs",
+            "type": "configs_",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "configs.ext",
+            "type": "configs2_t",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "quota",
+            "type": "quota_",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "ricardian_clauses": [
+        {
+            "id": "UserAgreement",
+            "body": "User agreement for the chain can go here."
+        },
+        {
+            "id": "EcoShareAgreement",
+            "body": "I, {{producer}}, hereby nominate myself for consideration as an elected block producer.\n\nIf {{producer}} is selected to produce blocks by the system contract, I will sign blocks with {{producer_key}} and I hereby attest that I will keep this key secret and secure.\n\nIf {{producer}} is unable to perform obligations under this contract I will resign my position by resubmitting this contract with the null producer key."
+        }
+    ],
+    "variants": []
+}

@@ -1,0 +1,121 @@
+{
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT ",
+    "version": "eosio::abi/1.1",
+    "types": [],
+    "structs": [
+        {
+            "name": "config",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bps_voting_share",
+                    "type": "uint64"
+                },
+                {
+                    "name": "bps_voting_account",
+                    "type": "name"
+                },
+                {
+                    "name": "stake_mining_account",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "global_tbl",
+            "base": "",
+            "fields": [
+                {
+                    "name": "bps_voting_share",
+                    "type": "uint64"
+                },
+                {
+                    "name": "bps_voting_account",
+                    "type": "name"
+                },
+                {
+                    "name": "stake_mining_account",
+                    "type": "name"
+                },
+                {
+                    "name": "last_transfer_id",
+                    "type": "uint64"
+                }
+            ]
+        },
+        {
+            "name": "init",
+            "base": "",
+            "fields": []
+        },
+        {
+            "name": "transfer_t",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "bps_voting_account",
+                    "type": "name"
+                },
+                {
+                    "name": "stake_mining_account",
+                    "type": "name"
+                },
+                {
+                    "name": "bps_voting_transferred",
+                    "type": "asset"
+                },
+                {
+                    "name": "stake_mining_transferred",
+                    "type": "asset"
+                },
+                {
+                    "name": "transferred_at",
+                    "type": "time_point"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "name": "config",
+            "type": "config",
+            "ricardian_contract": "---\nspec_version: \"0.1.0\"\ntitle: configure ecoshare settings\nsummary: 'Configure EcoShare Settings'\nicon: http://127.0.0.1/ricardian_assets/mgp.contracts/icons/\n---\n\n{{$action.account}} configures the ecoshare settings."
+        },
+        {
+            "name": "init",
+            "type": "init",
+            "ricardian_contract": ""
+        }
+    ],
+    "tables": [
+        {
+            "name": "global",
+            "type": "global_tbl",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "transfers",
+            "type": "transfer_t",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        }
+    ],
+    "ricardian_clauses": [
+        {
+            "id": "UserAgreement",
+            "body": "User agreement for the chain can go here."
+        },
+        {
+            "id": "EcoShareAgreement",
+            "body": "I, {{producer}}, hereby nominate myself for consideration as an elected block producer.\n\nIf {{producer}} is selected to produce blocks by the system contract, I will sign blocks with {{producer_key}} and I hereby attest that I will keep this key secret and secure.\n\nIf {{producer}} is unable to perform obligations under this contract I will resign my position by resubmitting this contract with the null producer key."
+        }
+    ],
+    "variants": []
+}
