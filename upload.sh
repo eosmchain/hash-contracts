@@ -4,6 +4,6 @@ host=m1
 rsync -rav -e ssh --include='*.abi' --include='*.wasm' \
     --exclude='unittest.sh' --exclude='**/CMakeFiles' \
     --exclude='*.cmake' --exclude='Makefile' --exclude='*.md' \
-    ./build/contracts ${host}:/opt/mgp/wallet
+    ./build/contracts ${host}:/opt/mgp/wallet/hash-contracts
 
-rsync -rav -e ssh ./unittest.sh ${host}:/opt/mgp/wallet/
+#rsync -rav -e ssh ./unittest.sh ${host}:/opt/mgp/wallet/
