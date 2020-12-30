@@ -7,7 +7,5 @@ find_package(eosio.cdt)
 
 set(ICON_BASE_URL "http://127.0.0.1/ricardian_assets/mgp.contracts/icons")
 
-add_subdirectory(ayj.token)
-# add_subdirectory(mgp.devshare)
-# add_subdirectory(mgp.bpvoting)
-# add_subdirectory(mgp.vstaking)
+# add_subdirectory(aiyunji.coin)
+add_subdirectory(aiyunji.mall)

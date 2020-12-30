@@ -1,9 +1,15 @@
-host=m1
+host=sh-test
 # host=jw
 
-rsync -rav -e ssh --include='*.abi' --include='*.wasm' \
-    --exclude='unittest.sh' --exclude='**/CMakeFiles' \
-    --exclude='*.cmake' --exclude='Makefile' --exclude='*.md' \
-    ./build/contracts ${host}:/opt/mgp/wallet/hash-contracts
+rsync -rav -e ssh \
+    --include='*.abi' \
+    --include='*.wasm' \
+    --exclude='**/CMakeFiles' \
+    --exclude='*.cmake' \
+    --exclude='Makefile' \
+    --exclude='*.md' \
+    --exclude='CMakeCache.txt' \
+    --exclude='CMakeLists.txt' \
+    ./build/contracts/ ${host}:/opt/mgp/wallet/contracts
 
 #rsync -rav -e ssh ./unittest.sh ${host}:/opt/mgp/wallet/
