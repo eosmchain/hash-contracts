@@ -9,16 +9,16 @@ namespace eosiosystem {
    class system_contract;
 }
 
-#define ISSUE(to, quantity, memo) \
-    {	token::issue_action act{ token_account, { {_self, active_perm} } };\
+#define ISSUE(bank, to, quantity, memo) \
+    {	token::issue_action act{ bank, { {_self, active_perm} } };\
 			act.send( to, quantity, memo );}
 
-#define BURN(from, quantity) \
-    {	token::burn_action act{ token_account, { {_self, active_perm} } };\
+#define BURN(bank, from, quantity) \
+    {	token::burn_action act{ bank, { {_self, active_perm} } };\
 			act.send( from, quantity, memo );}
 
-#define TRANSFER(to, quantity, memo) \
-    {	token::transfer_action act{ token_account, { {_self, active_perm} } };\
+#define TRANSFER(bank, to, quantity, memo) \
+    {	token::transfer_action act{ bank, { {_self, active_perm} } };\
 			act.send( _self, to, quantity , memo );}
 
 namespace eosio {

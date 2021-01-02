@@ -9,6 +9,9 @@ using namespace eosio;
 
 
 ACTION ayj_love::init() {
+    require_auth( _self );
+
+    _gstate.bank = "aiyunji.coin"_n;
 
 }
 
@@ -21,9 +24,10 @@ ACTION ayj_love::addproj(const name& issuer, const string& proj_code) {
     auto itr = idx.lower_bound( pc );
     check( itr == idx.end(), "project already exists: " + proj_code );
 
-    projects.modify( *itr,  _self, [&]( auto& item ) {
-        item.proj_code   = proj_code;
-        item.created_at  = time_point_sec( current_time_point() );
+    projects.emplace( _self, [&]( auto& row ) {
+        row.proj_code   = proj_code;
+        row.owner       = issuer;
+        row.created_at  = time_point_sec( current_time_point() );
     });
 
 }
@@ -64,7 +68,7 @@ ACTION ayj_love::donate(const name& issuer, const name& donor, const uint64_t& p
 
     _dbc.set(donation);
 
-    ISSUE( _self, quantity, "" )
+    ISSUE( _gstate.bank, _self, quantity, "" )
 
 }
 
@@ -93,7 +97,7 @@ ACTION ayj_love::accept(const name& issuer, const name& to, const uint64_t& proj
     acception.received      = quantity;
     acception.received_at   = time_point_sec( current_time_point() );
 
-    BURN( _self, quantity )
+    BURN( _gstate.bank, _self, quantity )
     
 }
 

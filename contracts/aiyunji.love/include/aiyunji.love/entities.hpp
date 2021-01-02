@@ -29,7 +29,7 @@ static constexpr uint32_t share_boost           = 10000;
 #define CONTRACT_TBL [[eosio::table, eosio::contract("aiyunji.love")]]
 
 struct [[eosio::table("global"), eosio::contract("aiyunji.love")]] global_t {
-    uint64_t vote_tally_index = 0;  //always grow, round by round
+    name bank;  //always grow, round by round
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
