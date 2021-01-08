@@ -22,7 +22,6 @@ using eosio::check;
 using eosio::datastream;
 using eosio::name;
 using eosio::symbol;
-using eosio::symbol_code;
 using eosio::unsigned_int;
 
 using std::string;

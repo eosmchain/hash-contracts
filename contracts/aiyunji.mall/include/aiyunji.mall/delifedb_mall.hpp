@@ -40,7 +40,7 @@ namespace wasm { namespace db {
 
         typedef wasm::table< "mallconf"_n, mall_config_t, uint64_t > table_t;
 
-        WASMLIB_SERIALIZE( mall_config_t, (credit_ratio_conf)(platform_trx_share)(dev_trx_share)(platform_regid)(devshare_regid) )
+        EOSLIB_SERIALIZE( mall_config_t, (credit_ratio_conf)(platform_trx_share)(dev_trx_share)(platform_regid)(devshare_regid) )
     };
 
     struct TABLE_IN_CONTRACT pool_t {
@@ -82,7 +82,7 @@ namespace wasm { namespace db {
 
         typedef wasm::table< "stcustomer"_n, store_customer_t, uint64_t > table_t;
 
-        WASMLIB_SERIALIZE( store_customer_t,   (store_id)(customer)(acc_consume_points) )
+        EOSLIB_SERIALIZE( store_customer_t,   (store_id)(customer)(acc_consume_points) )
     };
 
     struct TABLE_IN_CONTRACT customer_t {
@@ -99,7 +99,7 @@ namespace wasm { namespace db {
 
         typedef wasm::table< "customer"_n, project_t, uint64_t > table_t;
 
-        WASMLIB_SERIALIZE( customer_t,   (user)(inviter)(created_at) )
+        EOSLIB_SERIALIZE( customer_t,   (user)(inviter)(created_at) )
     };
 
 

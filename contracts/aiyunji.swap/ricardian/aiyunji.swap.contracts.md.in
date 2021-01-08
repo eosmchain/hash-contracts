@@ -1,0 +1,37 @@
+<h1 class="contract"> init </h1>
+init
+
+<h1 class="contract"> setoperator </h1>
+setoperator
+
+<h1 class="contract"> create </h1>
+
+create an exchange
+
+<h1 class="contract"> skim </h1>
+
+skim
+
+<h1 class="contract"> sync </h1>
+
+sync
+
+<h1 class="contract"> close </h1>
+
+close
+
+<h1 class="contract"> transfer </h1>
+
+transfer entrance
+
+<h1 class="contract"> refund </h1>
+
+refund
+
+<h1 class="contract"> getmarket </h1>
+
+getmarket
+
+<h1 class="contract"> getaction </h1>
+
+getaction
