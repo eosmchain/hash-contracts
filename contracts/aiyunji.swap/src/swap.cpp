@@ -280,7 +280,7 @@ ACTION ayj_swap::create(const name& bank0, const name& bank1, const symbol& symb
     snprintf(buf, sizeof(buf), "LP%.4d", lpcode);
     symbol_code liquidity_symbol(buf);
 
-    market.total_liquidity = TO_ASSET(0, liquidity_symbol);
+    market.total_liquidity      = TO_ASSET(0, liquidity_symbol);
 
     liquidity_index_t liquidity_index(liquidity_symbol, market.market_sym, market.base_sym);
     check( !_dbc.get(liquidity_index), "market with liquidity token symbol already exist" );
