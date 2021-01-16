@@ -72,7 +72,7 @@ CONTRACT_TBL market_t{
      * Note:    When there's a conflict with existing symbol pair, new market symbol must be renamed 
      *          to avoid such conflict!!!
      */
-    uint64_t primary_key() const {  return base_sym.raw() + market_sym.raw() << 32; }
+    uint64_t primary_key() const {  return base_sym.raw() + (market_sym.raw() << 32); }
     uint64_t scope() const { return 0; }
 
     string get_sympair()const { return market_sym.to_string() + "-" + base_sym.to_string(); }

@@ -23,8 +23,8 @@ void ayj_swap::_mint(const symbol_code& market_sym, const symbol_code &base_sym,
         check( !_dbc.get(mint_action), "mint action step1 already exist: " );
 
         mint_action.nonce       = nonce;
-        mint_action.market_sym = market_sym;
-        mint_action.base_sym = base_sym;
+        mint_action.market_sym  = market_sym;
+        mint_action.base_sym    = base_sym;
         mint_action.bank0       = get_first_receiver();
         mint_action.amount0_in  = quant;
         mint_action.closed      = false;
@@ -105,8 +105,8 @@ void ayj_swap::_burn(const symbol_code& market_sym, const symbol_code &base_sym,
 
     BURN( _gstate.liquidity_bank, _self, liquidity, "" )
 
-    TRANSFER( market.bank0, _self, to, amount0 )
-    TRANSFER( market.bank1, _self, to, amount1 )
+    TRANSFER( market.bank0, to, amount0, "" )
+    TRANSFER( market.bank1, to, amount1, "" )
 
     market.total_liquidity      -= liquidity;
     market.reserve0             = balance0 - amount0;
@@ -163,10 +163,10 @@ void ayj_swap::_swap(const symbol_code& market_sym, const symbol_code &base_sym,
         check( market.bank0 != to && market.bank1 != to, "invalid to" );
 
         if (amount0_out.amount > 0)
-            TRANSFER( market.bank0, _self, to, amount0_out )
+            TRANSFER( market.bank0, to, amount0_out, "" )
 
         if (amount1_out.amount > 0)
-            TRANSFER( market.bank1, _self, to, amount1_out )
+            TRANSFER( market.bank1, to, amount1_out, "" )
 
         balance0 = market.reserve0 + amount0_in - amount0_out;
         balance1 = market.reserve1 + amount1_in - amount1_out;
@@ -187,12 +187,12 @@ void ayj_swap::_swap(const symbol_code& market_sym, const symbol_code &base_sym,
         check( is_account(_gstate.owner), "owner account not set" );
 
         if (fee0.amount > 0) {
-            TRANSFER( market.bank0, _self, _gstate.owner, fee0 )
+            TRANSFER( market.bank0, _gstate.owner, fee0, "" )
 
             balance0 -= fee0;
         }
         if (fee1.amount > 0) {
-            TRANSFER( market.bank1, _self, _gstate.owner, fee1 )
+            TRANSFER( market.bank1, _gstate.owner, fee1, "" )
 
             balance1 -= fee1;
         }
@@ -232,7 +232,7 @@ void ayj_swap::deposit(name from, name to, asset quant, string memo) {
     }
     case N(swap): { // swap:BTC-ETH:quant_out:to
         check( memo_size == 4, "burn params size % must == 4 in transfer memo", memo_size );
-        asset quant_out = asset::asset_from_string(transfer_memo[2]);
+        asset quant_out = asset_from_string(transfer_memo[2]);
         _swap(market_sym, base_sym, quant, quant_out, name(transfer_memo[3]));
         return;
     }
@@ -320,12 +320,12 @@ ACTION ayj_swap::refund(const symbol_code& market_sym, const symbol_code &base_s
     check( to != _self, "_self is not to account: " + to.to_string() );
     
     if (mint_action.amount0_in.amount > 0) {
-        TRANSFER( mint_action.bank0, _self, to, mint_action.amount0_in )
+        TRANSFER( mint_action.bank0, to, mint_action.amount0_in, "" )
         mint_action.amount0_in.amount = 0;
     }
 
     if (mint_action.amount1_in.amount > 0) {
-        TRANSFER( mint_action.bank1, _self, to, mint_action.amount1_in )
+        TRANSFER( mint_action.bank1, to, mint_action.amount1_in, "" )
         mint_action.amount1_in.amount = 1;
     }
 
@@ -355,8 +355,8 @@ ACTION ayj_swap::skim(const symbol_code& market_sym, const symbol_code& base_sym
     check( balance0 >  market.reserve0, "balance0 <= market reserve0" );
     check( balance1 >  market.reserve1, "balance1 <= market reserve1" );
 
-    TRANSFER( market.bank0, _self, to, balance0 - market.reserve0 )
-    TRANSFER( market.bank1, _self, to, balance1 - market.reserve1 )
+    TRANSFER( market.bank0, to, balance0 - market.reserve0, "" )
+    TRANSFER( market.bank1, to, balance1 - market.reserve1, "" )
 
     auto now                    = current_time_point();
 
