@@ -8,9 +8,9 @@
 
 #include <string>
 
-namespace eosiosystem {
-   class system_contract;
-}
+// namespace eosiosystem {
+//    class system_contract;
+// }
 
 namespace ayj {
 

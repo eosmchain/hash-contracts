@@ -41,37 +41,39 @@ public:
 
     ~ayj_swap() { _global.set( _gstate, get_self() ); }
 
-    [[eosio::action]]
-    void init();
+    [[eosio::action]] void init();
+    [[eosio::action]] void openasset( const name& user, const name& payer, const extended_symbol& ext_symbol);
+    [[eosio::action]] void closeasset( const name& user, const name& to, const extended_symbol& ext_symbol, const string& memo);
+    [[eosio::action]] void openpair( const symbol& market_symb, const symbol& base_symb, const symbol& lpt_symb);
+    [[eosio::action]] void closepair( const symbol_code& market_sym, const symbol_code& base_sym, const bool closed);
 
-    [[eosio::action]]
-    void create(const name& bank0, const name& bank1, const symbol& symbol0, const symbol& symbol1, const uint64_t& lpcode);
-
-    [[eosio::action]]
-    void skim(const symbol_code& market_sym, const symbol_code& base_sym, const name& to, const asset& balance0, const asset& balance1);
-
-    [[eosio::action]]
-    void sync(const symbol_code& market_sym, const symbol_code& base_sym, const asset& balance0, const asset& balance1);
-
-    [[eosio::action]]
-    void close(const symbol_code& market_sym, const symbol_code& base_sym, const bool closed);
-
-    [[eosio::action]]
-    void refund(const symbol_code& market_sym, const symbol_code &base_sym, const name& to, const uint64_t& nonce);
-    
     [[eosio::on_notify("*::transfer")]]
-    void deposit(name from, name to, asset quant, std::string memo);
+    void deposit(const name& from, const name& to, const asset& quant, const string& memo);
 
-    using init_action       = action_wrapper<name("init"),      &ayj_swap::init     >;
-    using create_action     = action_wrapper<name("create"),    &ayj_swap::create   >;
-    using skim_action       = action_wrapper<name("skim"),      &ayj_swap::skim     >;
-    using sync_action       = action_wrapper<name("sync"),      &ayj_swap::sync     >;
-    using refund_action     = action_wrapper<name("refund"),    &ayj_swap::refund   >;
-    using transfer_action   = action_wrapper<name("transfer"),  &ayj_swap::deposit  >;
+    using init_action           = action_wrapper<name("init"),          &ayj_swap::init           >;
+    using createpair_action     = action_wrapper<name("createpair"),    &ayj_swap::createpair     >;
+    using closepair_action      = action_wrapper<name("closepair"),     &ayj_swap::closepair      >;
+    using addliquidity_action   = action_wrapper<name("addliquidity"),  &ayj_swap::addliquidity   >;
+    using remliquidity_action   = action_wrapper<name("remliquidity"),  &ayj_swap::remliquidity   >;
+    using transfer_action       = action_wrapper<name("transfer"),      &ayj_swap::deposit          >;
+
+public:
+    uint128_t make128key(uint64_t a, uint64_t b) {
+        uint128_t aa = a;
+        uint128_t bb = b;
+        return (aa << 64) + bb;
+    }
+
+    checksum256 make256key(uint64_t a, uint64_t b, uint64_t c, uint64_t d) {
+        if (make128key(a,b) < make128key(c,d))
+            return checksum256::make_from_word_sequence<uint64_t>(a,b,c,d);
+        else
+            return checksum256::make_from_word_sequence<uint64_t>(c,d,a,b);
+    }
 
 private:
-    void _mint(const symbol_code& market_sym, const symbol_code &base_sym, uint64_t step, const name &to, const asset &quant, uint64_t nonce);
-    void _burn(const symbol_code& market_sym, const symbol_code &base_sym, const asset &liquidity, const name &to);
+    void _addliquidity(const symbol_code& market_sym, const symbol_code &base_sym, uint64_t step, const name &to, const asset &quant, uint64_t nonce);
+    void _deliq(const symbol_code& market_sym, const symbol_code &base_sym, const asset &liquidity, const name &to);
     void _swap(const symbol_code& market_sym, const symbol_code &base_sym, const asset &quant_in, const asset &quant_out, const name &to);
 
 };
