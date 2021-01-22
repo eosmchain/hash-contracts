@@ -46,12 +46,10 @@ struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
     reward_plan_t direct_agent_plan    = {500,  true };
     reward_plan_t city_center_plan     = {300,  false};
     reward_plan_t ram_usage_plan       = {400,  false};
-   
+
 
     global_t() {
     }
-
-    EOSLIB_SERIALIZE( global_t, (donate_coin_expiry_days) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
  #define TABLE_IN_CONTRACT [[wasm::table, wasm::contract("delife")]]
@@ -178,7 +176,7 @@ struct CONTRACT_TBL vote_t {
     uint64_t primary_key() const { return id; }
     uint64_t scope() const { return 0; }
     typedef eosio::multi_index<"votes"_n, vote_t> index_t;
-    
+
     vote_t() {}
     // vote_t(const name& code) {
     //     index_t tbl(code, code.value); //scope: o
