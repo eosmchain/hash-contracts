@@ -16,7 +16,7 @@ ACTION ayj_love::init() {
 }
 
 ACTION ayj_love::addproj(const name& issuer, const string& proj_code) {
-    require_auth( issuer );
+    _require_admin( issuer );
 
     project_t::tbl_t projects(_self, _self.value);
     auto idx = projects.get_index<"projcode"_n>();
@@ -33,7 +33,7 @@ ACTION ayj_love::addproj(const name& issuer, const string& proj_code) {
 }
 
 ACTION ayj_love::delproj(const name& issuer, const uint64_t& proj_id) {
-    require_auth( issuer );
+    _require_admin( issuer );
 
     project_t proj(proj_id);
     check( _dbc.get(proj), "proj not found: " + to_string(proj_id) );
@@ -98,7 +98,7 @@ ACTION ayj_love::accept(const name& issuer, const name& to, const uint64_t& proj
     acception.received_at   = time_point_sec( current_time_point() );
 
     BURN( _gstate.bank, _self, quantity )
-    
+
 }
 
 } //ayj namespace

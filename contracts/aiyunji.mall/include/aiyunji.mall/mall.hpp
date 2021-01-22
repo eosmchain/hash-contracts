@@ -3,7 +3,7 @@
 #include <eosio/asset.hpp>
 #include <eosio/eosio.hpp>
 
-#include "mall_entities.hpp"
+#include "mall_states.hpp"
 #include "wasm_db.hpp"
 
 #include <string>
@@ -49,9 +49,9 @@ namespace ayj {
          void deposit(name from, name to, asset quantity, string memo);
 
          // using create_action = eosio::action_wrapper<"create"_n, &token::create>;
-     
 
-   
+
+
    };
 
 }
@@ -72,7 +72,7 @@ CONTRACT delife : public contract
         ACTION add_project(regid issuer, string proj_code);
         ACTION del_project(regid issuer, uint64_t proj_id);
 
-      
+
         //mall ACTIONS
         ACTION credit(regid issuer, regid consumer, uint64_t consume_points);
         ACTION decredit(regid issuer, regid consumer, uint64_t consume_points);

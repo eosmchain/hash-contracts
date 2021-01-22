@@ -55,16 +55,22 @@ class [[eosio::contract("aiyunji.love")]] ayj_love: public eosio::contract {
     [[eosio::action]]
     void delproj(const name& issuer, const uint64_t& proj_id);
 
-    [[eosio::action]] 
+    [[eosio::action]]
     void donate(const name& issuer, const name& donor, const uint64_t& proj_id, const asset& quantity, const string& pay_sn, const string& memo);
-    
-    [[eosio::action]] 
+
+    [[eosio::action]]
     void accept(const name& issuer, const name& to, const uint64_t& proj_id, const asset& quantity, const string& pay_sn, const string& memo);
 
     using init_action     = action_wrapper<name("init"),      &ayj_love::init       >;
     using donate_action   = action_wrapper<name("donate"),    &ayj_love::donate     >;
     using accept_action   = action_wrapper<name("accept"),    &ayj_love::accept     >;
 
+  private:
+    inline _require_admin(const name& issuer) {
+      require_auth( issuer );
+
+      check( _gstate.admins.count(issuer), "not an admin: " + isuser.to_string() );
+    }
 };
 
 } //ayj namespace

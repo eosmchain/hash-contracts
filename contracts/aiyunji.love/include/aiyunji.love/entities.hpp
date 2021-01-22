@@ -30,6 +30,7 @@ static constexpr uint32_t share_boost           = 10000;
 
 struct [[eosio::table("global"), eosio::contract("aiyunji.love")]] global_t {
     name bank;  //always grow, round by round
+    set<name> admins;
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
@@ -51,8 +52,8 @@ struct CONTRACT_TBL project_t {
         tbl_t tbl(code, scope);
         id = tbl.available_primary_key();
     }
-    
-    checksum256 by_proj_code()const { 
+
+    checksum256 by_proj_code()const {
         return sha256(const_cast<char*>(proj_code.c_str()), proj_code.size());
     }
 
