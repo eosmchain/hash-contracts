@@ -1,4 +1,4 @@
-add_contract(aiyunji.mall aiyunji.mall ${CMAKE_CURRENT_SOURCE_DIR}/src/aiyunji.mall.cpp)
+add_contract(aiyunji.mall aiyunji.mall ${CMAKE_CURRENT_SOURCE_DIR}/src/mall.cpp)
 
 target_include_directories(aiyunji.mall
    PUBLIC

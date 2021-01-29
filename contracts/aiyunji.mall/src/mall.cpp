@@ -1,4 +1,4 @@
-#include <aiyunji.mall/aiyunji.mall.hpp>
+#include <aiyunji.mall/mall.hpp>
 
 namespace ayj {
 
