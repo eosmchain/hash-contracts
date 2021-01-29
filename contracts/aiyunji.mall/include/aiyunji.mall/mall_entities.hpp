@@ -32,9 +32,9 @@ static constexpr uint32_t share_boost           = 10000;
 struct CONTRACT_TBL reward_plan_t {
     uint16_t ratio;
     bool mining;
-}
+};
 
-struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
+struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
     uint16_t withdraw_fee_ratio        = 3000;  //boost by 10000
 
     reward_plan_t customer_plan        = {4500, true };
@@ -47,207 +47,192 @@ struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
     reward_plan_t city_center_plan     = {300,  false};
     reward_plan_t ram_usage_plan       = {400,  false};
    
+    name platform_account;
+
+    config_t() {
+    }
+
+    // EOSLIB_SERIALIZE( config_t, (donate_coin_expiry_days) )
+};
+typedef eosio::singleton< "config"_n, config_t > config_singleton;
+
+struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
+    asset ram_usage_share;
+    asset platform_top_share;
+    asset certified_user_share;
 
     global_t() {
     }
 
-    EOSLIB_SERIALIZE( global_t, (donate_coin_expiry_days) )
+    EOSLIB_SERIALIZE( global_t, (ram_usage_share)(platform_top_share)(certified_user_share) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
- #define TABLE_IN_CONTRACT [[wasm::table, wasm::contract("delife")]]
 
-    struct TABLE_IN_CONTRACT credit_ratio_t {
-        uint8_t customer;             // 60%
-        uint8_t store;                // 10%
-        uint8_t store_top;            // 4%
-        uint8_t all_customer;         // 10%
-        uint8_t platform_top;         // 4%
-        uint8_t inviter;              // 5%
-        uint8_t agency;               // 2%
-        uint8_t citycenter;           // 2%
-        uint8_t gas;                  // 3%
-
-        credit_ratio_t(uint8_t c, uint8_t s, uint8_t st, uint8_t ac, uint8_t pt, uint8_t i, uint8_t ag, uint8_t cc, uint8_t g):
-                    customer(c), store(s), store_top(st), all_customer(ac), platform_top(pt), inviter(i), agency(ag), citycenter(cc), gas(g) {}
-    };
-
-    struct TABLE_IN_CONTRACT mall_config_t {
-        credit_ratio_t credit_ratio_conf;
-
-        uint8_t platform_trx_share;         // 30%
-        uint8_t dev_trx_share;              // 5%
-
-        regid platform_regid;
-        regid devshare_regid;
-
-        uint64_t primary_key()const { return 0ULL; }
-        regid scope()const { return DELIFE_SCOPE; }
-
-        mall_config_t() {}
-
-        typedef wasm::table< "mallconf"_n, mall_config_t, uint64_t > table_t;
-
-        EOSLIB_SERIALIZE( mall_config_t, (credit_ratio_conf)(platform_trx_share)(dev_trx_share)(platform_regid)(devshare_regid) )
-    };
-
-    struct TABLE_IN_CONTRACT pool_t {
-        uint64_t daily_top_share_a;  //10%: platform-wise top 10
-        uint64_t daily_top_share_b;  // 4%: platform-wise top 1000
-
-        uint64_t primary_key()const { return 1ULL; }
-        uint16_t scope()const { return DELIFE_SCOPE; }
-
-        typedef wasm::table< "pool"_n, pool_t, uint64_t > table_t;
-    };
-
-    struct TABLE_IN_CONTRACT store_t {
-        uint64_t    id;                 //PK
-
-        uint64_t    daily_top_share;    //  4%: store-wise top 10
-        uint64_t    daily_all_share;    // 10%: all store consumers
-        uint64_t    created_at;
-
-        store_t(uint64_t i): id(i) {}
-
-        uint64_t primary_key()const { return id; }
-        regid scope()const { return DELIFE_SCOPE; }
-
-        typedef wasm::table< "store"_n, store_t, uint64_t > table_t;
-    };
-
-    struct TABLE_IN_CONTRACT store_customer_t {
-        uint64_t    store_id;
-        regid       customer;
-
-        uint64_t    acc_consume_points;
-
-        uint64_t primary_key()const { return customer.value; }
-        regid scope()const { return store_id; }
-
-        store_customer_t() {}
-        store_customer_t(uint64_t s, regid c): store_id(s), customer(s) {}
-
-        typedef wasm::table< "stcustomer"_n, store_customer_t, uint64_t > table_t;
-
-        EOSLIB_SERIALIZE( store_customer_t,   (store_id)(customer)(acc_consume_points) )
-    };
-
-    struct TABLE_IN_CONTRACT customer_t {
-        regid       user;                  //PK
-
-        regid       inviter;
-        uint64_t    created_at;
-
-        uint64_t primary_key()const { return user.value; }
-        uint64_t scope()const { return DELIFE_SCOPE; }
-
-        customer_t(regid u): user(u) {}
-        customer_t() {}
-
-        typedef wasm::table< "customer"_n, project_t, uint64_t > table_t;
-
-        EOSLIB_SERIALIZE( customer_t,   (user)(inviter)(created_at) )
-    };
-
-
-
-/**
- *  vote table
+/** 
+ * 1. customer spending
+ * 2. agent refeerral
  */
-struct CONTRACT_TBL vote_t {
-    uint64_t id;        //PK: available_primary_key
+struct CONTRACT_TBL user_t {
+    name user;
+    name invited_by;
+    asset share;
+    time_point_sec updated_at;
 
-    name owner;         //voter
-    name candidate;     //target candidiate to vote for
-    asset quantity;
-
-    time_point voted_at;
-    time_point unvoted_at;
-    time_point restarted_at;   //restart age counting every 30-days
-    uint64_t election_round;
-    uint64_t reward_round;
-
-    uint64_t by_voter() const             { return owner.value;                              }
-    uint64_t by_candidate() const         { return candidate.value;                          }
-    uint64_t by_voted_at() const          { return uint64_t(voted_at.sec_since_epoch());     }
-    uint64_t by_unvoted_at() const        { return uint64_t(unvoted_at.sec_since_epoch());   }
-    uint64_t by_restarted_at() const      { return uint64_t(restarted_at.sec_since_epoch()); }
-    uint64_t by_election_round() const    { return election_round;                           }
-    uint64_t by_reward_round() const      { return reward_round;                             }
-
-    uint64_t primary_key() const { return id; }
     uint64_t scope() const { return 0; }
-    typedef eosio::multi_index<"votes"_n, vote_t> index_t;
-    
-    vote_t() {}
-    // vote_t(const name& code) {
-    //     index_t tbl(code, code.value); //scope: o
-    //     id = tbl.available_primary_key();
-    // }
-    vote_t(const uint64_t& pk): id(pk) {}
+    uint64_t primary_key() const { return user.value; }
 
-    EOSLIB_SERIALIZE( vote_t,   (id)(owner)(candidate)(quantity)
-                                (voted_at)(unvoted_at)(restarted_at)
-                                (election_round)(reward_round) )
 };
 
-typedef eosio::multi_index
-< "votes"_n, vote_t,
-    indexed_by<"voter"_n,        const_mem_fun<vote_t, uint64_t, &vote_t::by_voter>             >,
-    indexed_by<"candidate"_n,    const_mem_fun<vote_t, uint64_t, &vote_t::by_candidate>         >,
-    indexed_by<"voteda"_n,       const_mem_fun<vote_t, uint64_t, &vote_t::by_voted_at>          >,
-    indexed_by<"unvoteda"_n,     const_mem_fun<vote_t, uint64_t, &vote_t::by_unvoted_at>        >,
-    indexed_by<"restarted"_n,    const_mem_fun<vote_t, uint64_t, &vote_t::by_restarted_at>      >,
-    indexed_by<"electround"_n,   const_mem_fun<vote_t, uint64_t, &vote_t::by_election_round>    >,
-    indexed_by<"rewardround"_n,  const_mem_fun<vote_t, uint64_t, &vote_t::by_reward_round>      >
-> vote_tbl;
-
-
-/**
- *  vote table
- */
-struct CONTRACT_TBL voteage_t {
-    uint64_t vote_id;        //PK
-    asset votes;
-    uint64_t age;           //days
-
-    voteage_t() {}
-    voteage_t(const uint64_t vid): vote_id(vid) {}
-    voteage_t(const uint64_t vid, const asset& v, const uint64_t a): vote_id(vid), votes(v), age(a) {}
-
-    asset value() { return votes * age; }
-
-    uint64_t primary_key() const { return vote_id; }
-    uint64_t scope() const { return 0; }
-
-    typedef eosio::multi_index<"voteages"_n, voteage_t> index_t;
-
-    EOSLIB_SERIALIZE( voteage_t,  (vote_id)(votes)(age) )
-};
-
-/**
- *  Incoming rewards for whole bpvoting cohort
- *
- */
-struct CONTRACT_TBL reward_t {
+struct CONTRACT_TBL citycenter_share_t {
     uint64_t id;
-    asset quantity;
-    time_point created_at;
+    name city_center_account;
+    string city_center_name;
+    asset share;
+    time_point_sec updated_at;
 
-    reward_t() {}
-    reward_t(name code, uint64_t scope) {
-        index_t tbl(code, scope);
-        id = tbl.available_primary_key();
-    }
-
-    reward_t(const uint64_t& i): id(i) {}
-
-    uint64_t primary_key() const { return id; }
     uint64_t scope() const { return 0; }
+    uint64_t primary_key() const { return id; }
 
-    typedef eosio::multi_index<"rewards"_n, reward_t> index_t;
-
-    EOSLIB_SERIALIZE( reward_t,  (id)(quantity)(created_at) )
 };
+
+struct CONTRACT_TBL shop_t {
+    uint64_t id;                //shop_id
+    uint64_t parent_id;         //0 means top
+    name shop_account;          //shop funds account
+    name agent_account;
+    asset shop_sunshine_share;
+    asset shop_top_share;
+    time_point_sec created_at;
+
+    shop_t() {}
+    shop_t(const uint64_t& i): id(i) {}
+
+    uint64_t scope() const { return 0; }
+    uint64_t primary_key() const { return id; }
+    uint64_t by_parent_id() const { return parent_id; }
+    uint64_t by_shop_agent() const { return agent_account.value; }
+};
+
+/**
+ * accumulated spending for each customer and shop
+ *  Top 1000 can be derived within
+ */
+struct CONTRACT_TBL total_spending_t {
+    uint64_t id;
+    uint64_t shop_id;
+    name customer;
+    asset spending;  //accumulated ever since beginning
+    time_point_sec updated_at;
+
+    uint64_t scope() const { return 0; }  //platform-wise spending sorting, to derive top1000
+    uint64_t primary_key() const { return id; }
+    uint128_t shop_customer_key() const { return ((uint128_t)shop_id << 64) | customer.value; } //to ensure uniqueness
+
+    uint64_t by_spending() const { return std::numeric_limits<uint64_t>::max() - spending.amount; } //descending
+};
+
+struct CONTRACT_TBL day_spending_t {
+    uint64_t id;
+    uint64_t shop_id;
+    name customer;
+    asset spending; //accumulated for a customer in a shop in a day
+    time_point_sec updated_at;
+
+    uint64_t scope() const { return shop_id; } //shop-wise spending sorting, to derive top10
+    uint64_t primary_key() const { return id; }
+    uint128_t day_customer_key() { return (uint128_t (updated_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; } //to ensure uniqueness
+
+    uint64_t by_spending() const { return std::numeric_limits<uint64_t>::max() - spending.amount; }
+   
+};
+
+struct CONTRACT_TBL day_certified_t {
+    name user;
+    time_point_sec certified_at;
+
+    uint64_t scope() const { return 0; } //shop-wise spending sorting, to derive top10
+    uint64_t primary_key() const { return user.value; }
+};
+
+// typedef eosio::multi_index
+//     < "buyorders"_n,  order_t,
+//         indexed_by<"price"_n, const_mem_fun<order_t, uint64_t, &order_t::by_invprice> >,
+//         indexed_by<"maker"_n, const_mem_fun<order_t, uint64_t, &order_t::by_maker> >
+//     > buy_order_t;
+    
+/**
+ * reset after reward, but reward might not happen as scheduled
+ * hence there could be accumulation or records within
+ */
+struct CONTRACT_TBL shop_top_pool_t {
+    uint64_t id;
+    name customer;
+    uint64_t spening;
+    time_point_sec spent_at;
+};
+
+/**
+ * reset after reward, but reward might not happen as scheduled
+ * hence there could be accumulation or records within
+ */
+struct CONTRACT_TBL certified_user_pool_t {
+    name account;
+    time_point_sec certified_at;
+};
+
+struct CONTRACT_TBL platform_top_pool_t {
+    name account;
+    time_point_sec certified_at;
+};
+
+
+
+    // struct TABLE_IN_CONTRACT store_customer_t {
+    //     uint64_t    store_id;
+    //     regid       customer;
+
+    //     uint64_t    acc_consume_points;
+
+    //     uint64_t primary_key()const { return customer.value; }
+    //     regid scope()const { return store_id; }
+
+    //     store_customer_t() {}
+    //     store_customer_t(uint64_t s, regid c): store_id(s), customer(s) {}
+
+    //     typedef wasm::table< "stcustomer"_n, store_customer_t, uint64_t > table_t;
+
+    //     EOSLIB_SERIALIZE( store_customer_t,   (store_id)(customer)(acc_consume_points) )
+    // };
+
+    // struct TABLE_IN_CONTRACT customer_t {
+    //     regid       user;                  //PK
+
+    //     regid       inviter;
+    //     uint64_t    created_at;
+
+    //     uint64_t primary_key()const { return user.value; }
+    //     uint64_t scope()const { return DELIFE_SCOPE; }
+
+    //     customer_t(regid u): user(u) {}
+    //     customer_t() {}
+
+    //     typedef wasm::table< "customer"_n, project_t, uint64_t > table_t;
+
+    //     EOSLIB_SERIALIZE( customer_t,   (user)(inviter)(created_at) )
+    // };
+
+
+
+// typedef eosio::multi_index
+// < "votes"_n, vote_t,
+//     indexed_by<"voter"_n,        const_mem_fun<vote_t, uint64_t, &vote_t::by_voter>             >,
+//     indexed_by<"candidate"_n,    const_mem_fun<vote_t, uint64_t, &vote_t::by_candidate>         >,
+//     indexed_by<"voteda"_n,       const_mem_fun<vote_t, uint64_t, &vote_t::by_voted_at>          >,
+//     indexed_by<"unvoteda"_n,     const_mem_fun<vote_t, uint64_t, &vote_t::by_unvoted_at>        >,
+//     indexed_by<"restarted"_n,    const_mem_fun<vote_t, uint64_t, &vote_t::by_restarted_at>      >,
+//     indexed_by<"electround"_n,   const_mem_fun<vote_t, uint64_t, &vote_t::by_election_round>    >,
+//     indexed_by<"rewardround"_n,  const_mem_fun<vote_t, uint64_t, &vote_t::by_reward_round>      >
+// > vote_tbl;
+
 
 }

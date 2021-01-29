@@ -25,21 +25,27 @@ namespace ayj {
     */
    class [[eosio::contract("aiyunji.mall")]] ayj_mall : public contract {
       private:
+         config_singleton    _config;
+         config_t            _cstate;
+
          global_singleton    _global;
          global_t            _gstate;
+
          dbc                 _dbc;
 
       public:
          using contract::contract;
 
          ayj_mall(eosio::name receiver, eosio::name code, datastream<const char*> ds):
-         contract(receiver, code, ds), _global(get_self(), get_self().value), _dbc(get_self())
+         contract(receiver, code, ds), _config(_self, _self.value), _global(_self, _self.value), _dbc(_self)
          {
+            _cstate = _config.exists() ? _config.get() : config_t{};
             _gstate = _global.exists() ? _global.get() : global_t{};
          }
 
          ~ayj_mall() {
-            _global.set( _gstate, get_self() );
+            _config.set( _cstate, _self );
+            _global.set( _gstate, _self );
          }
 
          [[eosio::action]]
@@ -55,41 +61,4 @@ namespace ayj {
    };
 
 }
-
-
 //mall related
-
-
-CONTRACT delife : public contract
-{
-    using contract::contract;
-
-    public:
-        ACTION init();
-        ACTION config(string conf_key, uint64_t conf_val);
-        ACTION add_admin(const name issuer, regid admin, bool is_supper_admin);
-        ACTION del_admin(regid issuer, regid admin);
-        ACTION add_project(regid issuer, string proj_code);
-        ACTION del_project(regid issuer, uint64_t proj_id);
-
-      
-        //mall ACTIONS
-        ACTION credit(regid issuer, regid consumer, uint64_t consume_points);
-        ACTION decredit(regid issuer, regid consumer, uint64_t consume_points);
-        ACTION withdraw(regid issuer, regid to, asset quantity);
-        ACTION invest(regid issuer, regid investor, uint64_t invest_points);
-        ACTION emit_reward();
-
-        ACTION showid(uint64_t id);
-
-        void    pre_action();
-
-    private:
-        uint64_t    gen_new_id(const wasm::name &counter_key, bool persist = true);
-        uint64_t    inc_admin_counter(bool increase_by_one = true);
-        void        check_admin_auth(regid issuer, bool need_super_admin = false);
-        void        set_config(string conf_key, uint64_t conf_val);
-        uint64_t    get_config(string conf_key);
-
-
-}; //contract delife
