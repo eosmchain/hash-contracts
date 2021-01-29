@@ -51,8 +51,6 @@ struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
 
     config_t() {
     }
-
-    // EOSLIB_SERIALIZE( config_t, (donate_coin_expiry_days) )
 };
 typedef eosio::singleton< "config"_n, config_t > config_singleton;
 

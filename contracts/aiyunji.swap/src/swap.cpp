@@ -11,7 +11,115 @@ using namespace wasm::safemath;
 
 /************************ Help functions ****************************/
 
+<<<<<<< Updated upstream
 void ayj_swap::_swap(const symbol_code& market_symb, const symbol_code &base_symb, const asset &quant_in, const asset &quant_out, const name &to) {
+=======
+    market_t market(market_sym, base_sym);
+    check( _dbc.get(market), "market not exist:" + market_sym.to_string() + "-" + base_sym.to_string() );
+    check( !market.closed, "market already closed: " + market_sym.to_string() + "-" + base_sym.to_string() );
+
+    mint_action_t mint_action(to.value, nonce);
+    if (step == UNISWAP_MINT_STEP1) {
+        check( quant.symbol == market.reserve0.symbol, "step1: bank0 symbol and reserve0 symbol mismatch" );
+        check( get_first_receiver() == market.bank0, "step1: bank and bank0 mismatch" );
+        check( !_dbc.get(mint_action), "mint action step1 already exist: " );
+
+        mint_action.nonce       = nonce;
+        mint_action.market_sym = market_sym;
+        mint_action.base_sym = base_sym;
+        mint_action.bank0       = get_first_receiver();
+        mint_action.amount0_in  = quant;
+        mint_action.closed      = false;
+        mint_action.created_at  = time_point_sec( current_time_point() );
+
+        _dbc.set(mint_action);
+
+    } else if (step == UNISWAP_MINT_STEP2) {
+        check( _dbc.get(mint_action), "step2 mint action not exist" );
+        check( mint_action.market_sym == market_sym && mint_action.base_sym == base_sym,
+                "symbol_pair of mint action mismatches from param: " );
+        // check(mint_action.create_time == time_point_sec(current_time_point()), "2
+        // steps must be in one tx");
+        check( !mint_action.closed, "mint action already closed" );
+        check( get_first_receiver() == market.bank1, "step2 bank and bank1 mismatch" );
+        check( quant.symbol == market.reserve1.symbol, "step2 bank1 symbol and reserve1 symbol mismatch" );
+
+        mint_action.bank1      = get_first_receiver();
+        mint_action.amount1_in = quant;
+        mint_action.closed     = true;
+
+        _dbc.set(mint_action);
+
+        int64_t liquidity;
+        symbol liquidity_symbol = market.total_liquidity.symbol;
+        if (market.total_liquidity.amount == 0) {
+            liquidity = sqrt(mul(mint_action.amount0_in.amount,
+                                              mint_action.amount1_in.amount)) -
+                        MINIMUM_LIQUIDITY * PRECISION_1;
+
+            ISSUE( _gstate.liquidity_bank, _self, asset(MINIMUM_LIQUIDITY * PRECISION_1, liquidity_symbol), "" )
+
+            market.total_liquidity =
+                asset(MINIMUM_LIQUIDITY * PRECISION_1, liquidity_symbol);
+
+        } else {
+            liquidity = min(div(mul(mint_action.amount0_in.amount,
+                                                            market.total_liquidity.amount),
+                                           market.reserve0.amount),
+                            div(mul(mint_action.amount1_in.amount,
+                                                            market.total_liquidity.amount),
+                                           market.reserve1.amount));
+        }
+
+        check( liquidity > 0, "zero or negative liquidity minted" );
+
+        market.total_liquidity      += asset(liquidity, liquidity_symbol);
+        market.reserve0             = market.reserve0 + mint_action.amount0_in;
+        market.reserve1             = market.reserve1 + mint_action.amount1_in;
+        market.last_updated_at      = time_point_sec( current_time_point() );
+
+        _dbc.set(market);
+
+        ISSUE( _gstate.liquidity_bank, to, asset(liquidity, liquidity_symbol), "" )
+    }
+
+}
+
+void ayj_swap::_burn(const symbol_code& market_sym, const symbol_code &base_sym, const asset &liquidity, const name &to) {
+    // require_auth( to );
+    market_t market(market_sym, base_sym);
+    check( _dbc.get(market), "market does not exist" );
+    check( !market.closed, "market already closed" );
+    check( liquidity.symbol.raw() == market.total_liquidity.symbol.raw(), "liquidity symbol and market lptoken symbol mismatch" );
+    check( get_first_receiver() == _gstate.liquidity_bank, "liquidity bank and lptoken bank mismatch" );
+
+    asset balance0 = market.reserve0;
+    asset balance1 = market.reserve1;
+
+    asset amount0 = asset( div( mul(balance0.amount,
+                                   div( mul(liquidity.amount, PRECISION_1),
+                                        market.total_liquidity.amount)),
+                            PRECISION_1), balance0.symbol);
+    asset amount1 = asset( div( mul(balance1.amount,
+                                   div(mul(liquidity.amount, PRECISION_1),
+                                        market.total_liquidity.amount)),
+                            PRECISION_1), balance1.symbol);
+
+    BURN( _gstate.liquidity_bank, _self, liquidity, "" )
+
+    TRANSFER( market.bank0, to, amount0, "" )
+    TRANSFER( market.bank1, to, amount1, "" )
+
+    market.total_liquidity      -= liquidity;
+    market.reserve0             = balance0 - amount0;
+    market.reserve1             = balance1 - amount1;
+    market.last_updated_at      = current_time_point();
+
+    _dbc.set(market);
+}
+
+void ayj_swap::_swap(const symbol_code& market_sym, const symbol_code &base_sym, const asset &quant_in, const asset &quant_out, const name &to) {
+>>>>>>> Stashed changes
     check( quant_in.amount > 0, "input amount must be > 0");
 
     swap_pair_t pair(market_symb, base_symb);
@@ -58,10 +166,17 @@ void ayj_swap::_swap(const symbol_code& market_symb, const symbol_code &base_sym
         // check( pair.market_reserve.bank0 != to && market.bank1 != to, "invalid to" );
 
         if (amount0_out.amount > 0)
+<<<<<<< Updated upstream
             TRANSFER( _gstate.swap_pair_bank, to, amount0_out, "" )
 
         if (amount1_out.amount > 0)
             TRANSFER( _gstate.swap_pair_bank, to, amount1_out, "" )
+=======
+            TRANSFER( market.bank0, to, amount0_out, "" )
+
+        if (amount1_out.amount > 0)
+            TRANSFER( market.bank1, to, amount1_out, "" )
+>>>>>>> Stashed changes
 
         balance0 = pair.market_reserve + amount0_in - amount0_out;
         balance1 = pair.base_reserve + amount1_in - amount1_out;
@@ -82,12 +197,20 @@ void ayj_swap::_swap(const symbol_code& market_symb, const symbol_code &base_sym
         check( is_account(_gstate.swap_fee_receiver), "swap_fee_receiver account not set" );
 
         if (fee0.amount > 0) {
+<<<<<<< Updated upstream
             TRANSFER( market.bank0, _gstate.swap_fee_receiver, fee0, "" )
+=======
+            TRANSFER( market.bank0, _gstate.owner, fee0, "" )
+>>>>>>> Stashed changes
 
             balance0 -= fee0;
         }
         if (fee1.amount > 0) {
+<<<<<<< Updated upstream
             TRANSFER( market.bank1, _gstate.swap_fee_receiver, fee1, "" )
+=======
+            TRANSFER( market.bank1, _gstate.owner, fee1, "" )
+>>>>>>> Stashed changes
 
             balance1 -= fee1;
         }
@@ -156,11 +279,18 @@ void ayj_swap::deposit(const name& from, const name& to, const asset& quant, con
         _deliq( market_symb, base_symb, quant, from);
         return;
     }
+<<<<<<< Updated upstream
     //by normal swap traders
     case N(swap): {// "swap:BTC:ETH:$quant_out:$to"
         check( memo_arr_size == 5, "burn params size must be 5 in transfer memo", memo_arr_size );
         asset quant_out = asset_from_string(memo_arr[3]);
         _swap( market_symb, base_symb, quant, quant_out, name(memo_arr[3]));
+=======
+    case N(swap): { // swap:BTC-ETH:quant_out:to
+        check( memo_size == 4, "burn params size % must == 4 in transfer memo", memo_size );
+        asset quant_out = asset_from_string(transfer_memo[2]);
+        _swap(market_sym, base_sym, quant, quant_out, name(transfer_memo[3]));
+>>>>>>> Stashed changes
         return;
     }
     default: {
@@ -377,14 +507,14 @@ ACTION ayj_swap::refund(const symbol_code& market_sym, const symbol_code &base_s
     check( _dbc.get(mint_action), "the mint action not exist" );
 
     require_auth( mint_action.owner );
-    check( mint_action.market_sym == market_sym && mint_action.base_sym == base_sym, 
+    check( mint_action.market_sym == market_sym && mint_action.base_sym == base_sym,
             "symbol_pair of mint action mismatches with symbol_pair");
 
     check( !mint_action.closed, "mint action already closed" );
     check( mint_action.amount0_in.amount > 0 ||  mint_action.amount1_in.amount, "all asset is 0 in mint_action" );
 
     check( to != _self, "_self is not to account: " + to.to_string() );
-    
+
     if (mint_action.amount0_in.amount > 0) {
         TRANSFER( mint_action.bank0, to, mint_action.amount0_in, "" )
         mint_action.amount0_in.amount = 0;
@@ -399,6 +529,61 @@ ACTION ayj_swap::refund(const symbol_code& market_sym, const symbol_code &base_s
     _dbc.set( mint_action );
 
 }
+<<<<<<< Updated upstream
 */
+=======
+
+ACTION ayj_swap::close(const symbol_code& market_sym, const symbol_code& base_sym, const bool closed) {
+    require_auth( _self );
+
+    market_t market(market_sym, base_sym);
+    check( _dbc.get(market), "market not exist" + market.get_sympair() );
+    market.closed = closed;
+
+    _dbc.set( market );
+}
+
+ACTION ayj_swap::skim(const symbol_code& market_sym, const symbol_code& base_sym, const name& to, const asset& balance0, const asset& balance1) {
+    require_auth( _gstate.owner );
+
+    market_t market(market_sym, base_sym);
+    check( _dbc.get(market), "market not exist" );
+    check( market.closed, "market must be closed first" );
+    check( balance0.symbol == market.reserve0.symbol, "bank0 symbol mismatch" );
+    check( balance1.symbol == market.reserve1.symbol, "bank1 symbol mismatch" );
+    check( balance0 >  market.reserve0, "balance0 <= market reserve0" );
+    check( balance1 >  market.reserve1, "balance1 <= market reserve1" );
+
+    TRANSFER( market.bank0, to, balance0 - market.reserve0, "" )
+    TRANSFER( market.bank1, to, balance1 - market.reserve1, "" )
+
+    auto now                    = current_time_point();
+
+    market.last_updated_at      = now;
+    market.last_skimmed_at      = now;
+
+    _dbc.set(market);
+
+}
+
+ACTION ayj_swap::sync(const symbol_code& market_sym, const symbol_code& base_sym, const asset& balance0, const asset& balance1) {
+    require_auth( _gstate.owner );
+
+    market_t market(market_sym, base_sym);
+    check( _dbc.get(market), "market does not exist");
+    check( market.closed, "market must be closed first");
+    check( balance0.symbol == market.reserve0.symbol, "bank0 symbol mismatch" );
+    check( balance1.symbol == market.reserve1.symbol, "bank1 symbol mismatch" );
+
+    auto now                    = current_time_point();
+
+    market.reserve0             = balance0;
+    market.reserve1             = balance1;
+    market.last_updated_at      = now;
+    market.last_synced_at       = now;
+
+    _dbc.set(market);
+}
+>>>>>>> Stashed changes
 
 } //namespace ayj

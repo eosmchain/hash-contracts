@@ -3,7 +3,7 @@
 #include <eosio/asset.hpp>
 #include <eosio/eosio.hpp>
 
-#include "mall_entities.hpp"
+#include "mall_states.hpp"
 #include "wasm_db.hpp"
 
 #include <string>
@@ -55,9 +55,9 @@ namespace ayj {
          void deposit(name from, name to, asset quantity, string memo);
 
          // using create_action = eosio::action_wrapper<"create"_n, &token::create>;
-     
 
-   
+
+
    };
 
 }
