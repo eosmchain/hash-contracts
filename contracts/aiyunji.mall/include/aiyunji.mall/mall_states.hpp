@@ -105,9 +105,7 @@ struct CONTRACT_TBL citycenter_t {
 
     typedef eosio::multi_index<"citycenters"_n, citycenter_t> tbl_t;
 
-    EOSLIB_SERIALIZE( citycenter_t, (id)(citycenter_account)(citycenter_name)(share)(updated_at) )
-};
-
+    EOSLIB_SERIALIZE( citycenter_t, (id)(citycenter_account)(citycenter_name)(share)(updated_at
 struct CONTRACT_TBL user_t {
     name account;
     name invited_by;
@@ -165,7 +163,7 @@ struct CONTRACT_TBL total_spending_t {
     uint64_t shop_id;
     name customer;
     asset spending;  //accumulated ever since beginning
-    time_point_sec updated_at;
+    time_point_sec spent_at;
 
     uint64_t scope() const { return 0; }  //platform-wise spending sorting, to derive top1000
     uint64_t primary_key() const { return id; }
@@ -176,8 +174,9 @@ struct CONTRACT_TBL total_spending_t {
  
     typedef eosio::multi_index
     < "totalspends"_n, total_spending_t,
-        indexed_by<"shopspends"_n, const_mem_fun<total_spending_t, uint64_t, &total_spending_t::by_shop_spending>             >
-        indexed_by<"spends"_n, const_mem_fun<total_spending_t, uint64_t, &total_spending_t::by_spending>             >
+        indexed_by<"shopcustomer"_n, const_mem_fun<total_spending_t, uint128_t, &total_spending_t::shop_customer_key> >,
+        indexed_by<"shopspends"_n, const_mem_fun<total_spending_t, uint64_t, &total_spending_t::by_shop_spending> >,
+        indexed_by<"spends"_n, const_mem_fun<total_spending_t, uint64_t, &total_spending_t::by_spending> >
     > tbl_t;
 
 };
@@ -187,17 +186,18 @@ struct CONTRACT_TBL day_spending_t {
     uint64_t shop_id;
     name customer;
     asset spending; //accumulated for a customer in a shop in a day
-    time_point_sec updated_at;
+    time_point_sec spent_at;
 
     uint64_t scope() const { return shop_id; } //shop-wise spending sorting, to derive top10
     uint64_t primary_key() const { return id; }
-    uint128_t day_customer_key() { return (uint128_t (updated_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; } //to ensure uniqueness
+    uint128_t day_customer_key() { return (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; } //to ensure uniqueness
 
     uint64_t by_spending() const { return std::numeric_limits<uint64_t>::max() - spending.amount; }
    
     typedef eosio::multi_index
     < "dayspends"_n, day_spending_t,
-        indexed_by<"spends"_n,        const_mem_fun<day_spending_t, uint64_t, &vote_t::by_spending> >,
+        indexed_by<"daycustomer"_n, const_mem_fun<day_spending_t, uint128_t, &day_spending_t::day_customer_key> >,
+        indexed_by<"spends"_n,      const_mem_fun<day_spending_t, uint64_t, &day_spending_t::by_spending> >
     > tbl_t;
     
 };
@@ -208,7 +208,7 @@ struct CONTRACT_TBL day_certified_t {
 
     day_certified_t() {}
     day_certified_t(const name& u): user(u) { certified_at = time_point_sec( current_time_point() ); }
-    
+
     uint64_t scope() const { return 0; } //shop-wise spending sorting, to derive top10
     uint64_t primary_key() const { return user.value; }
 

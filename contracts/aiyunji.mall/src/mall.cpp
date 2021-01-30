@@ -29,6 +29,47 @@ void ayj_mall::deposit(const name& from, const name& to, const asset& quantity, 
 	// auto user_id = parse_uint64(params[0]);
 	auto shop_id = parse_uint64(memo);
 	auto N = quantity;
+	auto spent_at = current_time_point();
+
+	_gstate.platform_total_spending += N;
+	
+	day_spending_t::tbl_t day_spends(shop_id, _self.value);
+	auto idx_ds = day_spends.get_index<"daycustomer"_n>();
+	auto key_ds = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | from.value; 
+	auto itr_ds = idx_ds.lower_bound( key_ds );
+	if (itr_ds == idx_ds.end()) {
+		day_spends.emplace(_self, auto [&] row {
+			row.id 			= day_spends.available_primary_key();
+			row.shop_id 	= shop_id;
+			row.customer 	= from;
+			row.spending 	= N;
+			row.spent_at 	= time_point_sec( current_time_point() );
+		});
+	} else {
+		day_spends.modify(itr_ds, auto [&] row {
+			row.spending 	+= N;
+			row.spent_at 	= time_point_sec( current_time_point() );
+		});
+	}
+
+	total_spending_t::tbl_t total_spends(_self, _self.value);
+	auto idx_ts = day_spends.get_index<"daycustomer"_n>();
+	auto key_ts = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | from.value; 
+	auto itr_ts = idx_ts.lower_bound( key_ts );
+	if (itr_ts == idx_ts.end()) {
+		day_spends.emplace(_self, auto [&] row {
+			row.id 			= day_spends.available_primary_key();
+			row.shop_id 	= shop_id;
+			row.customer 	= from;
+			row.spending 	= N;
+			row.spent_at 	= time_point_sec( current_time_point() );
+		});
+	} else {
+		day_spends.modify(itr_ts, auto [&] row {
+			row.spending 	+= N;
+			row.spent_at 	= time_point_sec( current_time_point() );
+		});
+	}
 
 	//user:		45%
 	auto share0 = N * _cstate.allocation_ratios[0] / share_boost;
