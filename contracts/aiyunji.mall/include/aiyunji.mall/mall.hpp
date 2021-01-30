@@ -62,6 +62,7 @@ namespace ayj {
          [[eosio::action]]
          void withdraw();
 
+         using init_action     = action_wrapper<"init"_n,      &ayj_mall::init  >;
          using transfer_action = action_wrapper<"transfer"_n,  &ayj_mall::deposit  >;
          using execute_action  = action_wrapper<"execute"_n,   &ayj_mall::execute  >;
          using withdraw_action = action_wrapper<"withdraw"_n,  &ayj_mall::withdraw >;
