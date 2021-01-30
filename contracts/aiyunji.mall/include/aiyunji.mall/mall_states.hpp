@@ -31,7 +31,7 @@ static constexpr uint32_t MAX_STEP              = 20;
 #define CONTRACT_TBL [[eosio::table, eosio::contract("aiyunji.mall")]]
 
 struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
-    uint16_t withdraw_fee_ratio        = 3000;  //boost by 10000
+    uint16_t withdraw_fee_ratio         = 3000;  //boost by 10000
 
     vector<uint64_t> allocation_ratios  = {
         4500,   //user share
@@ -78,6 +78,7 @@ typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 struct [[eosio::table("global2"), eosio::contract("aiyunji.mall")]] global2_t {
     uint64_t last_reward_shop_id;
+    uint64_t last_sunshine_reward_spending_id;
     uint64_t last_platform_top_reward_step;
     time_point_sec last_shop_reward_finished_at;
     time_point_sec last_certified_reward_finished_at;
@@ -105,7 +106,9 @@ struct CONTRACT_TBL citycenter_t {
 
     typedef eosio::multi_index<"citycenters"_n, citycenter_t> tbl_t;
 
-    EOSLIB_SERIALIZE( citycenter_t, (id)(citycenter_account)(citycenter_name)(share)(updated_at
+    EOSLIB_SERIALIZE( citycenter_t, (id)(citycenter_account)(citycenter_name)(share)(updated_at) )
+};
+
 struct CONTRACT_TBL user_t {
     name account;
     name invited_by;
@@ -113,7 +116,7 @@ struct CONTRACT_TBL user_t {
     time_point_sec updated_at;
 
     user_t(){}
-    user_t(const name& u): user(u) {}
+    user_t(const name& a): account(a) {}
 
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return account.value; }
@@ -175,7 +178,7 @@ struct CONTRACT_TBL total_spending_t {
     typedef eosio::multi_index
     < "totalspends"_n, total_spending_t,
         indexed_by<"shopcustomer"_n, const_mem_fun<total_spending_t, uint128_t, &total_spending_t::shop_customer_key> >,
-        indexed_by<"shopspends"_n, const_mem_fun<total_spending_t, uint64_t, &total_spending_t::by_shop_spending> >,
+        indexed_by<"shopspends"_n, const_mem_fun<total_spending_t, uint128_t, &total_spending_t::by_shop_spending> >,
         indexed_by<"spends"_n, const_mem_fun<total_spending_t, uint64_t, &total_spending_t::by_spending> >
     > tbl_t;
 
@@ -190,7 +193,7 @@ struct CONTRACT_TBL day_spending_t {
 
     uint64_t scope() const { return shop_id; } //shop-wise spending sorting, to derive top10
     uint64_t primary_key() const { return id; }
-    uint128_t day_customer_key() { return (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; } //to ensure uniqueness
+    uint128_t day_customer_key() const { return (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; } //to ensure uniqueness
 
     uint64_t by_spending() const { return std::numeric_limits<uint64_t>::max() - spending.amount; }
    

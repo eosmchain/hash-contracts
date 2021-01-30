@@ -1,18 +1,9 @@
-#pragma once
-
 #include <eosio/asset.hpp>
 #include <eosio/eosio.hpp>
-
-#include "mall_states.hpp"
-#include "safe.hpp"
-#include "utils.hpp"
-#include "wasm_db.hpp"
-
 #include <string>
 
-// namespace eosiosystem {
-//    class system_contract;
-// }
+#include "mall_states.hpp"
+#include "wasm_db.hpp"
 
 namespace ayj {
 
@@ -64,14 +55,16 @@ namespace ayj {
 
          [[eosio::action]]
          void certifyuser(const name& issuer, const name& user);
-         
+
          [[eosio::action]]
          void execute(); //anyone can invoke, but usually by the platform
 
-         using transfer_action = action_wrapper<name("transfer"),  &ayj_mall::deposit  >;
-         using execute_action  = action_wrapper<name("execute"),   &ayj_mall::execute  >;
+         [[eosio::action]]
+         void withdraw();
 
-         // using create_action = eosio::action_wrapper<"create"_n, &token::create>;
+         using transfer_action = action_wrapper<"transfer"_n,  &ayj_mall::deposit  >;
+         using execute_action  = action_wrapper<"execute"_n,   &ayj_mall::execute  >;
+         using withdraw_action = action_wrapper<"withdraw"_n,  &ayj_mall::withdraw >;
 
       private:
          bool reward_shops();
