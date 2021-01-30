@@ -29,78 +29,89 @@ static constexpr uint32_t share_boost           = 10000;
 
 #define CONTRACT_TBL [[eosio::table, eosio::contract("aiyunji.mall")]]
 
-struct CONTRACT_TBL reward_plan_t {
-    uint16_t ratio;
-    bool mining;
-};
-
 struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
     uint16_t withdraw_fee_ratio        = 3000;  //boost by 10000
 
-    reward_plan_t customer_plan        = {4500, true };
-    reward_plan_t shop_sunshine_plan   = {1500, false};
-    reward_plan_t shop_top10_plan      = {500,  false};
-    reward_plan_t newly_certified_plan = {800,  false};
-    reward_plan_t pltform_top1k_plan   = {500,  false};
-    reward_plan_t direct_invite_plan   = {1000, true };
-    reward_plan_t direct_agent_plan    = {500,  true };
-    reward_plan_t city_center_plan     = {300,  false};
-    reward_plan_t ram_usage_plan       = {400,  false};
+    vector<uint64_t> allocation_ratios  = {
+        4500,   //user share
+        1500,   //shop_sunshine share
+        500,    //shop_top share
+        800,    //certified share
+        500,    //pltform_top share
+        1000,   //direct_referral share
+        500,    //direct_agent share
+        300,    //city_center share
+        400     //ram_usage share
+    };
    
     name platform_account;
+    name mall_bank;  //bank for the mall
+    symbol mall_symb;
 
     config_t() {
     }
+        
 };
 typedef eosio::singleton< "config"_n, config_t > config_singleton;
 
 struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
-    asset ram_usage_share;
     asset platform_top_share;
     asset certified_user_share;
+    asset ram_usage_share;
 
     global_t() {
     }
 
-    EOSLIB_SERIALIZE( global_t, (ram_usage_share)(platform_top_share)(certified_user_share) )
+    // EOSLIB_SERIALIZE( global_t, (ram_usage_share)(platform_top_share)(certified_user_share) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-/** 
- * 1. customer spending
- * 2. agent refeerral
- */
+
+struct CONTRACT_TBL citycenter_t {
+    uint64_t id;
+    name citycenter_account;
+    string citycenter_name;
+    asset share;
+    time_point_sec updated_at;
+    
+    citycenter_t() {}
+    citycenter_t(const uint64_t& i): id(i) {}
+
+    uint64_t scope() const { return 0; }
+    uint64_t primary_key() const { return id; }
+
+    typedef eosio::multi_index<"citycenters"_n, citycenter_t> tbl_t;
+
+    EOSLIB_SERIALIZE( citycenter_t, (id)(citycenter_account)(citycenter_name)(share)(updated_at) )
+};
+
 struct CONTRACT_TBL user_t {
     name user;
     name invited_by;
     asset share;
     time_point_sec updated_at;
 
+    user_t(){}
+    user_t(const name& u): user(u) {}
+
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return user.value; }
 
-};
+    typedef eosio::multi_index<"users"_n, user_t> tbl_t;
 
-struct CONTRACT_TBL citycenter_share_t {
-    uint64_t id;
-    name city_center_account;
-    string city_center_name;
-    asset share;
-    time_point_sec updated_at;
-
-    uint64_t scope() const { return 0; }
-    uint64_t primary_key() const { return id; }
-
+    EOSLIB_SERIALIZE( user_t, (user)(invited_by)(share)(updated_at) )
 };
 
 struct CONTRACT_TBL shop_t {
     uint64_t id;                //shop_id
     uint64_t parent_id;         //0 means top
+    uint64_t citycenter_id;
     name shop_account;          //shop funds account
     name agent_account;
     asset shop_sunshine_share;
     asset shop_top_share;
     time_point_sec created_at;
+    time_point_sec updated_at;
 
     shop_t() {}
     shop_t(const uint64_t& i): id(i) {}
@@ -109,6 +120,11 @@ struct CONTRACT_TBL shop_t {
     uint64_t primary_key() const { return id; }
     uint64_t by_parent_id() const { return parent_id; }
     uint64_t by_shop_agent() const { return agent_account.value; }
+
+    typedef eosio::multi_index<"shops"_n, shop_t> tbl_t;
+
+    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter_id)(shop_account)(agent_account)
+                                (shop_sunshine_share)(shop_top_share)(created_at)(updated_at) )
 };
 
 /**
@@ -183,54 +199,6 @@ struct CONTRACT_TBL platform_top_pool_t {
     time_point_sec certified_at;
 };
 
-
-
-    // struct TABLE_IN_CONTRACT store_customer_t {
-    //     uint64_t    store_id;
-    //     regid       customer;
-
-    //     uint64_t    acc_consume_points;
-
-    //     uint64_t primary_key()const { return customer.value; }
-    //     regid scope()const { return store_id; }
-
-    //     store_customer_t() {}
-    //     store_customer_t(uint64_t s, regid c): store_id(s), customer(s) {}
-
-    //     typedef wasm::table< "stcustomer"_n, store_customer_t, uint64_t > table_t;
-
-    //     EOSLIB_SERIALIZE( store_customer_t,   (store_id)(customer)(acc_consume_points) )
-    // };
-
-    // struct TABLE_IN_CONTRACT customer_t {
-    //     regid       user;                  //PK
-
-    //     regid       inviter;
-    //     uint64_t    created_at;
-
-    //     uint64_t primary_key()const { return user.value; }
-    //     uint64_t scope()const { return DELIFE_SCOPE; }
-
-    //     customer_t(regid u): user(u) {}
-    //     customer_t() {}
-
-    //     typedef wasm::table< "customer"_n, project_t, uint64_t > table_t;
-
-    //     EOSLIB_SERIALIZE( customer_t,   (user)(inviter)(created_at) )
-    // };
-
-
-
-// typedef eosio::multi_index
-// < "votes"_n, vote_t,
-//     indexed_by<"voter"_n,        const_mem_fun<vote_t, uint64_t, &vote_t::by_voter>             >,
-//     indexed_by<"candidate"_n,    const_mem_fun<vote_t, uint64_t, &vote_t::by_candidate>         >,
-//     indexed_by<"voteda"_n,       const_mem_fun<vote_t, uint64_t, &vote_t::by_voted_at>          >,
-//     indexed_by<"unvoteda"_n,     const_mem_fun<vote_t, uint64_t, &vote_t::by_unvoted_at>        >,
-//     indexed_by<"restarted"_n,    const_mem_fun<vote_t, uint64_t, &vote_t::by_restarted_at>      >,
-//     indexed_by<"electround"_n,   const_mem_fun<vote_t, uint64_t, &vote_t::by_election_round>    >,
-//     indexed_by<"rewardround"_n,  const_mem_fun<vote_t, uint64_t, &vote_t::by_reward_round>      >
-// > vote_tbl;
 
 
 }
