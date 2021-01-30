@@ -33,21 +33,27 @@ namespace ayj {
          global_singleton    _global;
          global_t            _gstate;
 
+         global2_singleton   _global2;
+         global2_t           _gstate2;
+
          dbc                 _dbc;
 
       public:
          using contract::contract;
 
          ayj_mall(eosio::name receiver, eosio::name code, datastream<const char*> ds):
-            contract(receiver, code, ds), _config(_self, _self.value), _global(_self, _self.value), 
+            contract(receiver, code, ds), _config(_self, _self.value), 
+            _global(_self, _self.value), _global2(_self, _self.value), 
             _dbc(_self) {
             _cstate = _config.exists() ? _config.get() : config_t{};
             _gstate = _global.exists() ? _global.get() : global_t{};
+            _gstate2 = _global2.exists() ? _global2.get() : global2_t{};
          }
 
          ~ayj_mall() {
             _config.set( _cstate, _self );
             _global.set( _gstate, _self );
+            _global2.set( _gstate2, _self );
          }
 
          [[eosio::action]]
@@ -56,17 +62,22 @@ namespace ayj {
          [[eosio::on_notify("*::transfer")]]
          void deposit(const name& from, const name& to, const asset& quantity, const string& memo);
 
+         [[eosio::action]]
+         void certifyuser(const name& issuer, const name& user);
+         
+         [[eosio::action]]
+         void execute(); //anyone can invoke, but usually by the platform
+
          using transfer_action = action_wrapper<name("transfer"),  &ayj_mall::deposit  >;
+         using execute_action  = action_wrapper<name("execute"),   &ayj_mall::execute  >;
 
          // using create_action = eosio::action_wrapper<"create"_n, &token::create>;
 
-
-         inline static uint64_t parse_uint64(string_view str) {
-            safe<uint64_t> ret;
-            to_int(str, ret);
-            return ret.value;
-         }
-
+      private:
+         bool reward_shops();
+         bool reward_shop(const uint64_t& shop_id);
+         bool reward_certified();
+         bool reward_platform_top();
    };
 
 }

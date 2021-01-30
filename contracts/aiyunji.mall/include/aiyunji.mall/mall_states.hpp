@@ -26,6 +26,7 @@ static constexpr uint32_t seconds_per_week      = 24 * 3600 * 7;
 static constexpr uint32_t seconds_per_day       = 24 * 3600;
 static constexpr uint32_t seconds_per_hour      = 3600;
 static constexpr uint32_t share_boost           = 10000;
+static constexpr uint32_t MAX_STEP              = 20;
 
 #define CONTRACT_TBL [[eosio::table, eosio::contract("aiyunji.mall")]]
 
@@ -43,21 +44,30 @@ struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
         300,    //city_center share
         400     //ram_usage share
     };
-   
+    uint8_t ITR_MAX;
+    uint16_t platform_top_count = 1000;
+    uint16_t shop_top_count = 10;
+
+    name platform_admin;
     name platform_account;
     name mall_bank;  //bank for the mall
     symbol mall_symb;
 
     config_t() {
+        ITR_MAX = 10;
     }
         
 };
 typedef eosio::singleton< "config"_n, config_t > config_singleton;
 
 struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
+    asset platform_total_spending;
     asset platform_top_share;
-    asset certified_user_share;
     asset ram_usage_share;
+    asset lucky_draw_share;
+    asset certified_user_share;
+    uint64_t certified_user_count;
+    uint64_t max_shop_id;
 
     global_t() {
     }
@@ -66,6 +76,19 @@ struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
+struct [[eosio::table("global2"), eosio::contract("aiyunji.mall")]] global2_t {
+    uint64_t last_reward_shop_id;
+    uint64_t last_platform_top_reward_step;
+    time_point_sec last_shop_reward_finished_at;
+    time_point_sec last_certified_reward_finished_at;
+    time_point_sec last_platform_reward_finished_at;
+
+    global2_t() {
+    }
+
+    // EOSLIB_SERIALIZE( global_t, (ram_usage_share)(platform_top_share)(certified_user_share) )
+};
+typedef eosio::singleton< "global2"_n, global2_t > global2_singleton;
 
 struct CONTRACT_TBL citycenter_t {
     uint64_t id;
@@ -86,7 +109,7 @@ struct CONTRACT_TBL citycenter_t {
 };
 
 struct CONTRACT_TBL user_t {
-    name user;
+    name account;
     name invited_by;
     asset share;
     time_point_sec updated_at;
@@ -95,11 +118,11 @@ struct CONTRACT_TBL user_t {
     user_t(const name& u): user(u) {}
 
     uint64_t scope() const { return 0; }
-    uint64_t primary_key() const { return user.value; }
+    uint64_t primary_key() const { return account.value; }
 
     typedef eosio::multi_index<"users"_n, user_t> tbl_t;
 
-    EOSLIB_SERIALIZE( user_t, (user)(invited_by)(share)(updated_at) )
+    EOSLIB_SERIALIZE( user_t, (account)(invited_by)(share)(updated_at) )
 };
 
 struct CONTRACT_TBL shop_t {
@@ -109,9 +132,15 @@ struct CONTRACT_TBL shop_t {
     name shop_account;          //shop funds account
     name agent_account;
     asset shop_sunshine_share;
+    asset total_customer_spending;
     asset shop_top_share;
+    asset total_customer_day_spending;
+
+    uint64_t last_sunshine_reward_spending_id;
     time_point_sec created_at;
     time_point_sec updated_at;
+    time_point_sec last_sunshine_rewarded_at;
+    time_point_sec last_top_rewarded_at;
 
     shop_t() {}
     shop_t(const uint64_t& i): id(i) {}
@@ -142,7 +171,15 @@ struct CONTRACT_TBL total_spending_t {
     uint64_t primary_key() const { return id; }
     uint128_t shop_customer_key() const { return ((uint128_t)shop_id << 64) | customer.value; } //to ensure uniqueness
 
+    uint128_t by_shop_spending() const { return (uint128_t)shop_id << 64 | id; }
     uint64_t by_spending() const { return std::numeric_limits<uint64_t>::max() - spending.amount; } //descending
+ 
+    typedef eosio::multi_index
+    < "totalspends"_n, total_spending_t,
+        indexed_by<"shopspends"_n, const_mem_fun<total_spending_t, uint64_t, &total_spending_t::by_shop_spending>             >
+        indexed_by<"spends"_n, const_mem_fun<total_spending_t, uint64_t, &total_spending_t::by_spending>             >
+    > tbl_t;
+
 };
 
 struct CONTRACT_TBL day_spending_t {
@@ -158,21 +195,27 @@ struct CONTRACT_TBL day_spending_t {
 
     uint64_t by_spending() const { return std::numeric_limits<uint64_t>::max() - spending.amount; }
    
+    typedef eosio::multi_index
+    < "dayspends"_n, day_spending_t,
+        indexed_by<"spends"_n,        const_mem_fun<day_spending_t, uint64_t, &vote_t::by_spending> >,
+    > tbl_t;
+    
 };
 
 struct CONTRACT_TBL day_certified_t {
     name user;
     time_point_sec certified_at;
 
+    day_certified_t() {}
+    day_certified_t(const name& u): user(u) { certified_at = time_point_sec( current_time_point() ); }
+    
     uint64_t scope() const { return 0; } //shop-wise spending sorting, to derive top10
     uint64_t primary_key() const { return user.value; }
-};
 
-// typedef eosio::multi_index
-//     < "buyorders"_n,  order_t,
-//         indexed_by<"price"_n, const_mem_fun<order_t, uint64_t, &order_t::by_invprice> >,
-//         indexed_by<"maker"_n, const_mem_fun<order_t, uint64_t, &order_t::by_maker> >
-//     > buy_order_t;
+    typedef eosio::multi_index<"certusers"_n, day_certified_t> tbl_t;
+
+    EOSLIB_SERIALIZE( day_certified_t, (user)(certified_at) )
+};
     
 /**
  * reset after reward, but reward might not happen as scheduled

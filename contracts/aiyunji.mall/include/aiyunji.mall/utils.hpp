@@ -90,6 +90,12 @@ void precision_from_decimals(int8_t decimals, T& p10)
     }
 }
 
+inline static uint64_t parse_uint64(string_view str) {
+    safe<uint64_t> ret;
+    to_int(str, ret);
+    return ret.value;
+}
+
 asset asset_from_string(string_view from)
 {
     string_view s = trim(from);
