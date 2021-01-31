@@ -29,8 +29,6 @@ namespace ayj {
          global2_singleton   _global2;
          global2_t           _gstate2;
 
-
-
       public:
          using contract::contract;
 
@@ -54,7 +52,13 @@ namespace ayj {
          void init();  //only code maintainer can init
 
          [[eosio::on_notify("*::transfer")]]
-         void deposit(const name& from, const name& to, const asset& quantity, const string& memo);
+         void creditspend(const name& from, const name& to, const asset& quantity, const string& memo);
+
+         [[eosio::action]]
+         void registeruser(const name& issuer, const name& user, const name& referrer);
+         
+         [[eosio::action]]
+         void registershop(const name& issuer, const name& user);
 
          [[eosio::action]]
          void certifyuser(const name& issuer, const name& user);
@@ -62,14 +66,20 @@ namespace ayj {
          [[eosio::action]]
          void execute(); //anyone can invoke, but usually by the platform
 
-         [[eosio::action]]
-         void withdraw();
+         [[eosio::action]] // user to withdraw, type 0: spending, 1: customer referral, 2: shop referral
+         void withdraw(const name& issuer, const uint8_t& withdraw_type, const uint64_t& shop_id);
 
-         using init_action          = action_wrapper<"init"_n,          &ayj_mall::init  >;
-         using transfer_action      = action_wrapper<"transfer"_n,      &ayj_mall::deposit  >;
+         [[eosio::action]] // forced withdrawal to users in mining w/o spending for 35+ days
+         void withdrawx(const name& issuer, const name& to, const uint8_t& withdraw_type);
+
+         using init_action          = action_wrapper<"init"_n,          &ayj_mall::init >;
+         using transfer_action      = action_wrapper<"transfer"_n,      &ayj_mall::creditspend >;
+         using registeruser_action  = action_wrapper<"registeruser"_n,  &ayj_mall::registeruser >;
+         using registershop_action  = action_wrapper<"registershop"_n,  &ayj_mall::registershop >;
          using certifyuser_action   = action_wrapper<"certifyuser"_n,   &ayj_mall::certifyuser >;
-         using execute_action       = action_wrapper<"execute"_n,       &ayj_mall::execute  >;
+         using execute_action       = action_wrapper<"execute"_n,       &ayj_mall::execute >;
          using withdraw_action      = action_wrapper<"withdraw"_n,      &ayj_mall::withdraw >;
+         using withdrawx_action     = action_wrapper<"withdrawx"_n,     &ayj_mall::withdrawx >;
 
       private:
          void credit_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id);

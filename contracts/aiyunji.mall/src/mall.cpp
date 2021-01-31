@@ -62,13 +62,13 @@ void ayj_mall::credit_total_spending(const asset& quant, const name& customer, c
  *  @memo: 		"<shop_id>"
  * 		
  */
-void ayj_mall::deposit(const name& from, const name& to, const asset& quantity, const string& memo) {
+void ayj_mall::creditspend(const name& from, const name& to, const asset& quantity, const string& memo) {
 	if (to != _self) return;
 
 	CHECK( quantity.symbol.is_valid(), "Invalid quantity symbol name" )
 	CHECK( quantity.is_valid(), "Invalid quantity" )
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
-	CHECK( quantity.amount > 0, "deposit quanity must be positive" )
+	CHECK( quantity.amount > 0, "creditspend quanity must be positive" )
 
 	// vector<string_view> params = split(memo, ":");
 	// CHECK( params.size() == 2, "memo must be of <user_id>:<shop_id>" )
@@ -80,28 +80,28 @@ void ayj_mall::deposit(const name& from, const name& to, const asset& quantity, 
 	credit_total_spending(N, from, shop_id);
 
 	//user:		45%
-	auto share0 = N * _cstate.allocation_ratios[0] / share_boost;
+	auto share0 = N * _cstate.allocation_ratios[0] / ratio_boost;
 	user_t user(from);
 	_dbc.get( user );
-	user.share += share0;
+	user.spending_reward += share0;
 	_dbc.set( user );
 	
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 
-	auto share1 = N * _cstate.allocation_ratios[1] / share_boost; 
-	auto share2 = N * _cstate.allocation_ratios[2] / share_boost;
+	auto share1 = N * _cstate.allocation_ratios[1] / ratio_boost; 
+	auto share2 = N * _cstate.allocation_ratios[2] / ratio_boost;
 	shop.shop_sunshine_share += share1; //shop-all:		15%
 	shop.shop_top_share += share2;	//shop-top:		5%
 	shop.updated_at = time_point_sec(current_time_point());
 	_dbc.set( shop );
 
 	//certified:	8%
-	auto share3 = N * _cstate.allocation_ratios[3] / share_boost; 
+	auto share3 = N * _cstate.allocation_ratios[3] / ratio_boost; 
 	_gstate.certified_user_share += share3;
 
 	//platform-top: 5%
-	auto share4 = N * _cstate.allocation_ratios[4] / share_boost; 
+	auto share4 = N * _cstate.allocation_ratios[4] / ratio_boost; 
 	_gstate.platform_top_share += share4;
 
 	//TODO: referral/agent
@@ -109,16 +109,29 @@ void ayj_mall::deposit(const name& from, const name& to, const asset& quantity, 
 	//agent:		5%
 	
 	//citycenter:	3%
-	auto share6 = N * _cstate.allocation_ratios[6] / share_boost; 
+	auto share6 = N * _cstate.allocation_ratios[6] / ratio_boost; 
 	citycenter_t cc(shop.citycenter_id);
 	CHECK( _dbc.get(cc), "Err: citycenter not found: " + to_string(shop.citycenter_id) )
 	cc.share += share6;
 	_dbc.set( cc );
 
 	//ram-usage:	4%
-	auto share7 = N * _cstate.allocation_ratios[7] / share_boost; 
+	auto share7 = N * _cstate.allocation_ratios[7] / ratio_boost; 
 	_gstate.ram_usage_share += share7;
     
+}
+
+ACTION ayj_mall::registeruser(const name& issuer, const name& user, const name& referrer) {
+	CHECK( issuer == _cstate.platform_admin, "" )
+	require_auth( issuer );
+
+}
+         
+ACTION ayj_mall::registershop(const name& issuer, const name& user) {
+	CHECK( issuer == _cstate.platform_admin, "" )
+	require_auth( issuer );
+
+
 }
 
 ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
@@ -131,15 +144,71 @@ ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 	_dbc.set(daycert);
 }
 
+
+
 ACTION ayj_mall::execute() {
 	if (!reward_shops()) return;
-	
+
 	if (!reward_certified()) return;
 
 	reward_platform_top();
 }
 
-ACTION ayj_mall::withdraw() {
+ACTION ayj_mall::withdraw(const name& issuer, const uint8_t& withdraw_type, const uint64_t& shop_id) {
+	require_auth( issuer );
+	CHECK( withdraw_type < 3, "withdraw_type not valid: " + to_string(withdraw_type) )
+
+	user_t user(issuer);
+	CHECK( _dbc.get(user), "user not found: " + issuer.to_string() )
+
+	auto now = current_time_point();
+	switch( withdraw_type ) {
+	case 0: // spending share removal 
+	{
+		shop_t shop(shop_id);
+		CHECK( _dbc.get(shop), "shop not found: " + to_string(shop_id) )
+		total_spending_t::tbl_t total_spends(_self, _self.value);
+		auto idx_ts = total_spends.get_index<"shopcustomer"_n>();
+		auto key_ts = ((uint128_t)shop_id << 64) | user.account.value;
+		auto itr_ts = idx_ts.lower_bound( key_ts );
+		CHECK( itr_ts != idx_ts.end(), "shop not found: " + to_string(shop_id) + " for " + user.account.to_string() )
+		CHECK( itr_ts->spent_at < now, "Err: spent_at time issue" )
+		CHECK( now.sec_since_epoch() - itr_ts->spent_at.sec_since_epoch() >= _cstate.withdraw_mature_days * seconds_per_day, "withdrwal time immature" )
+		CHECK( itr_ts->spending <= user.spending_reward, "Err: user share insufficient" )
+		
+		auto share_to_remove = itr_ts->spending;
+		idx_ts.erase( itr_ts );
+
+		user.spending_reward -= share_to_remove;
+		_dbc.set(user);
+
+		asset platform_fees = share_to_remove * _cstate.withdraw_fee_ratio / ratio_boost;
+		CHECK( platform_fees < share_to_remove, "Err: withdrawl fees oversized!" )
+		share_to_remove -= platform_fees;
+
+		TRANSFER( _cstate.mall_bank, _cstate.platform_account, share_to_remove, "fees" )
+		TRANSFER( _cstate.mall_bank, user.account, share_to_remove, "spend reward" )
+	}
+	break;
+	case 1: //customer referral reward withdrawl
+	{
+		TRANSFER( _cstate.mall_bank, user.account, user.customer_referral_reward, "cref reward" )
+		user.customer_referral_reward.amount = 0;
+		_dbc.set( user );
+	}
+	break;
+	case 2: //shop referral reward withdrawal
+	{
+		TRANSFER( _cstate.mall_bank, user.account, user.shop_referral_reward, "sref reward" )
+		user.shop_referral_reward.amount = 0;
+		_dbc.set( user );
+	}
+	break;
+	}
+}
+
+ACTION ayj_mall::withdrawx(const name& issuer, const name& to, const uint8_t& withdraw_type) {
+
 
 }
 
@@ -201,11 +270,9 @@ bool ayj_mall::reward_shops() {
 
 	uint8_t step = 0;
 	for (; itr != shops.end() && step < _cstate.ITR_MAX; itr++, step++) {
-		auto finished = reward_shop(itr->id);
-		if (finished) 
-			_gstate2.last_reward_shop_id = itr->id;
-		else 
-			return false;
+		if (!reward_shop(itr->id)) return false;
+
+		_gstate2.last_reward_shop_id = itr->id;			
 	}
 
 	if (itr == shops.end()) {
@@ -265,7 +332,7 @@ bool ayj_mall::reward_platform_top() {
 		_gstate2.last_platform_reward_finished_at = time_point_sec( current_time_point() );
 		finished = true;
 	}
-	
+
 	return true;
 }
 

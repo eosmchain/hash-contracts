@@ -26,7 +26,7 @@ static constexpr uint32_t seconds_per_month     = 24 * 3600 * 30;
 static constexpr uint32_t seconds_per_week      = 24 * 3600 * 7;
 static constexpr uint32_t seconds_per_day       = 24 * 3600;
 static constexpr uint32_t seconds_per_hour      = 3600;
-static constexpr uint32_t share_boost           = 10000;
+static constexpr uint32_t ratio_boost           = 10000;
 
 static constexpr uint64_t K_ASWAP_SYS_CONF      = 1;
 static constexpr uint64_t RATIO_BOOST           = 10000; // ratio boost 10000

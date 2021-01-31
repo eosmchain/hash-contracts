@@ -26,13 +26,14 @@ static constexpr uint32_t seconds_per_month     = 24 * 3600 * 30;
 static constexpr uint32_t seconds_per_week      = 24 * 3600 * 7;
 static constexpr uint32_t seconds_per_day       = 24 * 3600;
 static constexpr uint32_t seconds_per_hour      = 3600;
-static constexpr uint32_t share_boost           = 10000;
+static constexpr uint32_t ratio_boost           = 10000;
 static constexpr uint32_t MAX_STEP              = 20;
 
 #define CONTRACT_TBL [[eosio::table, eosio::contract("aiyunji.mall")]]
 
 struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
     uint16_t withdraw_fee_ratio         = 3000;  //boost by 10000
+    uint16_t withdraw_mature_days       = 1;
     vector<uint64_t> allocation_ratios  = {
         4500,   //user share
         1500,   //shop_sunshine share
@@ -102,8 +103,10 @@ struct CONTRACT_TBL citycenter_t {
 
 struct CONTRACT_TBL user_t {
     name account;
-    name invited_by;
-    asset share;
+    name referred_by;
+    asset spending_reward           = asset(0, HST_SYMBOL);
+    asset customer_referral_reward  = asset(0, HST_SYMBOL);
+    asset shop_referral_reward      = asset(0, HST_SYMBOL);
     time_point_sec updated_at;
 
     user_t(){}
@@ -114,7 +117,9 @@ struct CONTRACT_TBL user_t {
 
     typedef eosio::multi_index<"users"_n, user_t> tbl_t;
 
-    EOSLIB_SERIALIZE( user_t, (account)(invited_by)(share)(updated_at) )
+    EOSLIB_SERIALIZE( user_t,   (account)(referred_by)
+                                (spending_reward)(customer_referral_reward)(shop_referral_reward)
+                                (updated_at) )
 };
 
 struct CONTRACT_TBL shop_t {
