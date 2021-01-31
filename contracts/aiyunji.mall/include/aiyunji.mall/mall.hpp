@@ -18,6 +18,8 @@ namespace ayj {
     */
    class [[eosio::contract("aiyunji.mall")]] ayj_mall : public contract {
       private:
+         dbc                 _dbc;
+
          config_singleton    _config;
          config_t            _cstate;
 
@@ -27,21 +29,22 @@ namespace ayj {
          global2_singleton   _global2;
          global2_t           _gstate2;
 
-         dbc                 _dbc;
+
 
       public:
          using contract::contract;
 
          ayj_mall(eosio::name receiver, eosio::name code, datastream<const char*> ds):
-            contract(receiver, code, ds), _config(_self, _self.value), 
-            _global(_self, _self.value), _global2(_self, _self.value), 
-            _dbc(_self) {
+            contract(receiver, code, ds), _dbc(_self), _config(_self, _self.value), 
+            _global(_self, _self.value), _global2(_self, _self.value) 
+         {
             _cstate = _config.exists() ? _config.get() : config_t{};
             _gstate = _global.exists() ? _global.get() : global_t{};
             _gstate2 = _global2.exists() ? _global2.get() : global2_t{};
          }
 
-         ~ayj_mall() {
+         ~ayj_mall() 
+         {
             _config.set( _cstate, _self );
             _global.set( _gstate, _self );
             _global2.set( _gstate2, _self );
@@ -62,12 +65,15 @@ namespace ayj {
          [[eosio::action]]
          void withdraw();
 
-         using init_action     = action_wrapper<"init"_n,      &ayj_mall::init  >;
-         using transfer_action = action_wrapper<"transfer"_n,  &ayj_mall::deposit  >;
-         using execute_action  = action_wrapper<"execute"_n,   &ayj_mall::execute  >;
-         using withdraw_action = action_wrapper<"withdraw"_n,  &ayj_mall::withdraw >;
+         using init_action          = action_wrapper<"init"_n,          &ayj_mall::init  >;
+         using transfer_action      = action_wrapper<"transfer"_n,      &ayj_mall::deposit  >;
+         using certifyuser_action   = action_wrapper<"certifyuser"_n,   &ayj_mall::certifyuser >;
+         using execute_action       = action_wrapper<"execute"_n,       &ayj_mall::execute  >;
+         using withdraw_action      = action_wrapper<"withdraw"_n,      &ayj_mall::withdraw >;
 
       private:
+         void credit_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
+         void credit_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
          bool reward_shops();
          bool reward_shop(const uint64_t& shop_id);
          bool reward_certified();

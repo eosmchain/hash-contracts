@@ -5,10 +5,56 @@
 
 namespace ayj {
 
-void ayj_mall::init() {
-
+ACTION ayj_mall::init() {
+	//init mall symbol
+	_cstate.mall_bank = "aiyunji.coin"_n;
 }
 
+void ayj_mall::credit_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
+	auto spent_at = current_time_point();
+
+	day_spending_t::tbl_t day_spends(_self, shop_id);
+	auto idx_ds = day_spends.get_index<"daycustomer"_n>();
+	auto key_ds = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; 
+	auto itr_ds = idx_ds.lower_bound( key_ds );
+	if (itr_ds == idx_ds.end()) {
+		day_spends.emplace(_self, [&](auto& row) {
+			row.id 			= day_spends.available_primary_key();
+			row.shop_id 	= shop_id;
+			row.customer 	= customer;
+			row.spending 	= quant;
+			row.spent_at 	= time_point_sec( current_time_point() );
+		});
+	} else {
+		day_spends.modify(*itr_ds, _self, [&](auto& row) {
+			row.spending 	+= quant;
+			row.spent_at 	= time_point_sec( current_time_point() );
+		});
+	}
+}
+
+void ayj_mall::credit_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
+	auto spent_at = current_time_point();
+
+	total_spending_t::tbl_t total_spends(_self, _self.value);
+	auto idx_ts = total_spends.get_index<"shopcustomer"_n>();
+	auto key_ts = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; 
+	auto itr_ts = idx_ts.lower_bound( key_ts );
+	if (itr_ts == idx_ts.end()) {
+		total_spends.emplace(_self, [&](auto& row)  {
+			row.id 			= total_spends.available_primary_key();
+			row.shop_id 	= shop_id;
+			row.customer 	= customer;
+			row.spending 	= quant;
+			row.spent_at 	= time_point_sec( current_time_point() );
+		});
+	} else {
+		total_spends.modify(*itr_ts, _self, [&](auto& row) {
+			row.spending 	+= quant;
+			row.spent_at 	= time_point_sec( current_time_point() );
+		});
+	}
+}
 /**
  * 	@from: 		admin user
  *  @to: 		mall contract or self
@@ -21,7 +67,7 @@ void ayj_mall::deposit(const name& from, const name& to, const asset& quantity, 
 
 	CHECK( quantity.symbol.is_valid(), "Invalid quantity symbol name" )
 	CHECK( quantity.is_valid(), "Invalid quantity" )
-	CHECK( quantity.symbol == _cstate.mall_symb, "Token Symbol not allowed" )
+	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
 	CHECK( quantity.amount > 0, "deposit quanity must be positive" )
 
 	// vector<string_view> params = split(memo, ":");
@@ -29,47 +75,9 @@ void ayj_mall::deposit(const name& from, const name& to, const asset& quantity, 
 	// auto user_id = parse_uint64(params[0]);
 	auto shop_id = parse_uint64(memo);
 	auto N = quantity;
-	auto spent_at = current_time_point();
-
 	_gstate.platform_total_spending += N;
-	
-	day_spending_t::tbl_t day_spends(_self, shop_id);
-	auto idx_ds = day_spends.get_index<"daycustomer"_n>();
-	auto key_ds = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | from.value; 
-	auto itr_ds = idx_ds.lower_bound( key_ds );
-	if (itr_ds == idx_ds.end()) {
-		day_spends.emplace(_self, [&](auto& row) {
-			row.id 			= day_spends.available_primary_key();
-			row.shop_id 	= shop_id;
-			row.customer 	= from;
-			row.spending 	= N;
-			row.spent_at 	= time_point_sec( current_time_point() );
-		});
-	} else {
-		day_spends.modify(*itr_ds, _self, [&](auto& row) {
-			row.spending 	+= N;
-			row.spent_at 	= time_point_sec( current_time_point() );
-		});
-	}
-
-	total_spending_t::tbl_t total_spends(_self, _self.value);
-	auto idx_ts = total_spends.get_index<"shopcustomer"_n>();
-	auto key_ts = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | from.value; 
-	auto itr_ts = idx_ts.lower_bound( key_ts );
-	if (itr_ts == idx_ts.end()) {
-		total_spends.emplace(_self, [&](auto& row)  {
-			row.id 			= total_spends.available_primary_key();
-			row.shop_id 	= shop_id;
-			row.customer 	= from;
-			row.spending 	= N;
-			row.spent_at 	= time_point_sec( current_time_point() );
-		});
-	} else {
-		total_spends.modify(*itr_ts, _self, [&](auto& row) {
-			row.spending 	+= N;
-			row.spent_at 	= time_point_sec( current_time_point() );
-		});
-	}
+	credit_day_spending(N, from, shop_id);
+	credit_total_spending(N, from, shop_id);
 
 	//user:		45%
 	auto share0 = N * _cstate.allocation_ratios[0] / share_boost;
@@ -96,6 +104,7 @@ void ayj_mall::deposit(const name& from, const name& to, const asset& quantity, 
 	auto share4 = N * _cstate.allocation_ratios[4] / share_boost; 
 	_gstate.platform_top_share += share4;
 
+	//TODO: referral/agent
 	//direct-referral:	20%
 	//agent:		5%
 	
@@ -123,7 +132,7 @@ ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 }
 
 ACTION ayj_mall::execute() {
-	if(!reward_shops()) return;
+	if (!reward_shops()) return;
 	
 	if (!reward_certified()) return;
 
@@ -147,7 +156,7 @@ bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 	auto lower_itr = spend_idx.lower_bound( spend_key );
 	uint8_t step = 0;
 	auto itr = lower_itr;
-	for (; itr != spend_idx.end() && step++ < MAX_STEP; itr++) { /// sunshine reward
+	for (; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) { /// sunshine reward
 		shop.last_sunshine_reward_spending_id = itr->id;
 		_gstate2.last_sunshine_reward_spending_id = itr->id;
 		auto quant = (shop.shop_sunshine_share / shop.total_customer_spending) * itr->spending;
@@ -164,7 +173,7 @@ bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 		day_spending_t::tbl_t day_spends(_self, shop.id);
 		auto spend_idx = day_spends.get_index<"spends"_n>();
 		uint8_t step = 0;
-		for (auto itr = spend_idx.begin(); itr != spend_idx.end() && step < _cstate.shop_top_count; itr++) {
+		for (auto itr = spend_idx.begin(); itr != spend_idx.end() && step < _cstate.shop_top_count; itr++, step++) {
 			user_t user(itr->customer);
 			CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
 
@@ -223,6 +232,7 @@ bool ayj_mall::reward_certified() {
 	}
 
 	if (itr == new_users.end()) {
+		_gstate.certified_user_count = 0;
 		_gstate2.last_certified_reward_finished_at = time_point_sec( current_time_point() );
 		finished = true;
 	}
@@ -255,7 +265,7 @@ bool ayj_mall::reward_platform_top() {
 		_gstate2.last_platform_reward_finished_at = time_point_sec( current_time_point() );
 		finished = true;
 	}
-
+	
 	return true;
 }
 
