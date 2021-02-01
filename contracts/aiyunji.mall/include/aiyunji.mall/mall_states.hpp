@@ -145,10 +145,12 @@ struct CONTRACT_TBL shop_t {
 
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return id; }
-    // uint64_t by_parent_id() const { return parent_id; }
-    // uint64_t by_referral_agent() const { return referral_account.value; }
-
-    typedef eosio::multi_index<"shops"_n, shop_t> tbl_t;
+    uint64_t by_parent_id() const { return parent_id; }
+    uint64_t by_referral() const { return referral_account.value; }
+    typedef eosio::multi_index< "shops"_n, shop_t,
+        indexed_by<"parentid"_n, const_mem_fun<shop_t, uint64_t, &shop_t::by_parent_id> >,
+        indexed_by<"referrer"_n, const_mem_fun<shop_t, uint64_t, &shop_t::by_referral> >
+    > tbl_t;
 
     EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter_id)(shop_account)(referral_account)
                                 (total_customer_spending)(total_customer_day_spending)
