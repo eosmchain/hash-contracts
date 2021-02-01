@@ -121,16 +121,37 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
     
 }
 
-ACTION ayj_mall::registeruser(const name& issuer, const name& user, const name& referrer) {
+/**
+ *  @issuer: platform admin who helps to register
+ *  @the_user: the new user to register
+ *  @referrer: one who referrs the user onto this platform, if "0" it means empty referrer
+ */
+ACTION ayj_mall::registeruser(const name& issuer, const name& the_user, const name& referrer) {
 	CHECK( issuer == _cstate.platform_admin, "" )
 	require_auth( issuer );
+
+	user_t user(the_user);
+	CHECK( !_dbc.get(user), "user not found: " + the_user.to_string() )
+
+	user.referral_account = referrer;
+	user.created_at = time_point_sec( current_time_point() );
+
+	_dbc.set(user);
 
 }
          
-ACTION ayj_mall::registershop(const name& issuer, const name& user) {
+ACTION ayj_mall::registershop(const name& issuer, const name& referrer, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& shop_account) {
 	CHECK( issuer == _cstate.platform_admin, "" )
 	require_auth( issuer );
 
+	shop_t::tbl_t shops(_self, _self.value);
+	shops.emplace(_self, [&](auto& row) {
+		row.id 					= shops.available_primary_key();
+		row.citycenter_id		= citycenter_id;
+		row.parent_id 			= parent_shop_id;
+		row.shop_account 		= shop_account;
+		row.referral_account	= referrer;
+	});
 
 }
 
@@ -154,12 +175,14 @@ ACTION ayj_mall::execute() {
 	reward_platform_top();
 }
 
-ACTION ayj_mall::withdraw(const name& issuer, const uint8_t& withdraw_type, const uint64_t& shop_id) {
+ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, const uint64_t& shop_id) {
 	require_auth( issuer );
 	CHECK( withdraw_type < 3, "withdraw_type not valid: " + to_string(withdraw_type) )
+	CHECK( is_account(to), "to account not valid: " + to.to_string() )
 
-	user_t user(issuer);
-	CHECK( _dbc.get(user), "user not found: " + issuer.to_string() )
+	user_t user(to);
+	CHECK( _dbc.get(user), "to user not found: " + to.to_string() )
+	CHECK( issuer == _cstate.platform_admin || issuer == to, "withdraw other's reward not allowed" )
 
 	auto now = current_time_point();
 	switch( withdraw_type ) {
@@ -207,17 +230,15 @@ ACTION ayj_mall::withdraw(const name& issuer, const uint8_t& withdraw_type, cons
 	}
 }
 
-ACTION ayj_mall::withdrawx(const name& issuer, const name& to, const uint8_t& withdraw_type) {
-
-
-}
+// ACTION ayj_mall::withdrawx(const name& issuer, const name& to, const uint8_t& withdraw_type) {
+// }
 
 bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 	auto finished = false;
 
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	CHECK( shop.last_sunshine_rewarded_at.sec_since_epoch() % seconds_per_day < current_time_point().sec_since_epoch() % seconds_per_day, "shop sunshine reward already executed" )
+	CHECK( shop.rewarded_at.sec_since_epoch() % seconds_per_day < current_time_point().sec_since_epoch() % seconds_per_day, "shop sunshine reward already executed" )
 
 	auto spend_key = ((uint128_t) shop.id << 64) | _gstate2.last_sunshine_reward_spending_id;
 	total_spending_t::tbl_t total_spends(_self, _self.value);
@@ -237,8 +258,6 @@ bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 	}
 
 	if (itr == spend_idx.end()) { /// top 10 reward
-		shop.last_sunshine_rewarded_at = time_point_sec( current_time_point() );
-
 		day_spending_t::tbl_t day_spends(_self, shop.id);
 		auto spend_idx = day_spends.get_index<"spends"_n>();
 		uint8_t step = 0;
@@ -250,7 +269,7 @@ bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 
 			TRANSFER( _cstate.mall_bank, user.account, quant, "shop top reward" )
 		}
-		shop.last_top_rewarded_at = time_point_sec( current_time_point() );
+		shop.rewarded_at = time_point_sec( current_time_point() );
 		_dbc.set( shop );
 
 		finished = true;

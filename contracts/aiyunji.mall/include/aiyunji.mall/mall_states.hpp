@@ -60,12 +60,12 @@ struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
 typedef eosio::singleton< "config"_n, config_t > config_singleton;
 
 struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
-    asset platform_total_spending   = asset(0, HST_SYMBOL);
-    asset platform_top_share        = asset(0, HST_SYMBOL);
-    asset ram_usage_share           = asset(0, HST_SYMBOL);
-    asset lucky_draw_share          = asset(0, HST_SYMBOL);
-    asset certified_user_share      = asset(0, HST_SYMBOL);
-    uint64_t certified_user_count   = 0;
+    asset platform_total_spending       = asset(0, HST_SYMBOL);
+    asset platform_top_share            = asset(0, HST_SYMBOL);
+    asset ram_usage_share               = asset(0, HST_SYMBOL);
+    asset lucky_draw_share              = asset(0, HST_SYMBOL);
+    asset certified_user_share          = asset(0, HST_SYMBOL);
+    uint64_t certified_user_count       = 0;
 
     global_t() {}
 };
@@ -103,10 +103,11 @@ struct CONTRACT_TBL citycenter_t {
 
 struct CONTRACT_TBL user_t {
     name account;
-    name referred_by;
+    name referral_account;
     asset spending_reward           = asset(0, HST_SYMBOL);
     asset customer_referral_reward  = asset(0, HST_SYMBOL);
     asset shop_referral_reward      = asset(0, HST_SYMBOL);
+    time_point_sec created_at;
     time_point_sec updated_at;
 
     user_t(){}
@@ -117,9 +118,9 @@ struct CONTRACT_TBL user_t {
 
     typedef eosio::multi_index<"users"_n, user_t> tbl_t;
 
-    EOSLIB_SERIALIZE( user_t,   (account)(referred_by)
+    EOSLIB_SERIALIZE( user_t,   (account)(referral_account)
                                 (spending_reward)(customer_referral_reward)(shop_referral_reward)
-                                (updated_at) )
+                                (created_at)(updated_at) )
 };
 
 struct CONTRACT_TBL shop_t {
@@ -127,30 +128,32 @@ struct CONTRACT_TBL shop_t {
     uint64_t parent_id;         //0 means top
     uint64_t citycenter_id;
     name shop_account;          //shop funds account
-    name agent_account;
-    asset shop_sunshine_share;
-    asset total_customer_spending;
-    asset shop_top_share;
-    asset total_customer_day_spending;
+    name referral_account;
+    
+    asset total_customer_spending           = asset(0, HST_SYMBOL);
+    asset total_customer_day_spending       = asset(0, HST_SYMBOL);
+    asset shop_sunshine_share               = asset(0, HST_SYMBOL);
+    asset shop_top_share                    = asset(0, HST_SYMBOL);;
 
     uint64_t last_sunshine_reward_spending_id;
     time_point_sec created_at;
     time_point_sec updated_at;
-    time_point_sec last_sunshine_rewarded_at;
-    time_point_sec last_top_rewarded_at;
+    time_point_sec rewarded_at;
 
     shop_t() {}
     shop_t(const uint64_t& i): id(i) {}
 
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return id; }
-    uint64_t by_parent_id() const { return parent_id; }
-    uint64_t by_shop_agent() const { return agent_account.value; }
+    // uint64_t by_parent_id() const { return parent_id; }
+    // uint64_t by_referral_agent() const { return referral_account.value; }
 
     typedef eosio::multi_index<"shops"_n, shop_t> tbl_t;
 
-    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter_id)(shop_account)(agent_account)
-                                (shop_sunshine_share)(shop_top_share)(created_at)(updated_at) )
+    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter_id)(shop_account)(referral_account)
+                                (total_customer_spending)(total_customer_day_spending)
+                                (shop_sunshine_share)(shop_top_share)(last_sunshine_reward_spending_id)
+                                (created_at)(updated_at)(rewarded_at) )
 };
 
 /**
