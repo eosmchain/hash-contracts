@@ -430,7 +430,7 @@ bool ayj_mall::reward_platform_top() {
 		TRANSFER( _cstate.mall_bank, itr->account, asset(amt, HST_SYMBOL), "shop reward" )
 	}
 
-	if (itr == user_idx.end()) {
+	if (itr == user_idx.end() || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
 		_gstate2.last_platform_reward_finished_at = time_point_sec( current_time_point() );
 		_gstate2.last_platform_top_reward_step = 0;
 		finished = true;
