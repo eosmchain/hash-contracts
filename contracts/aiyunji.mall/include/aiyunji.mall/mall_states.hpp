@@ -45,16 +45,17 @@ struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
         300,    //city_center share
         400     //ram_usage share
     };
-    uint8_t ITR_MAX                     = 10;
     uint16_t platform_top_count         = 1000;
     uint16_t shop_top_count             = 10;
-
     name platform_admin;
     name platform_account;
     name mall_bank;  //bank for the mall
 
-    config_t() {
-    }
+    config_t() {}
+
+    EOSLIB_SERIALIZE(config_t,  (withdraw_fee_ratio)(withdraw_mature_days)(allocation_ratios)
+                                (platform_top_count)(shop_top_count)
+                                (platform_admin)(platform_account)(mall_bank) )
         
 };
 typedef eosio::singleton< "config"_n, config_t > config_singleton;
@@ -68,6 +69,11 @@ struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
     uint64_t certified_user_count       = 0;
 
     global_t() {}
+
+    EOSLIB_SERIALIZE(global_t,  (platform_total_spending)(platform_top_share)
+                                (ram_usage_share)(lucky_draw_share)(certified_user_share)
+                                (certified_user_count) )
+
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
@@ -80,25 +86,34 @@ struct [[eosio::table("global2"), eosio::contract("aiyunji.mall")]] global2_t {
     time_point_sec last_platform_reward_finished_at;
 
     global2_t() {}
+
+    EOSLIB_SERIALIZE(global2_t, (last_reward_shop_id)(last_sunshine_reward_spending_id)(last_platform_top_reward_step)
+                                (last_shop_reward_finished_at)(last_certified_reward_finished_at)(last_platform_reward_finished_at) )
+                                
 };
 typedef eosio::singleton< "global2"_n, global2_t > global2_singleton;
 
 struct CONTRACT_TBL citycenter_t {
     uint64_t id;
+    name citycenter_name;
     name citycenter_account;
-    string citycenter_name;
     asset share;
+    time_point_sec created_at;
     time_point_sec updated_at;
-    
+
     citycenter_t() {}
     citycenter_t(const uint64_t& i): id(i) {}
 
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return id; }
+    uint64_t name_key() const { return citycenter_name.value; }
 
-    typedef eosio::multi_index<"citycenters"_n, citycenter_t> tbl_t;
+    typedef eosio::multi_index<"citycenters"_n, citycenter_t,
+        indexed_by<"ccname"_n, const_mem_fun<citycenter_t, uint64_t, &citycenter_t::name_key> >
+    > tbl_t;
 
-    EOSLIB_SERIALIZE( citycenter_t, (id)(citycenter_account)(citycenter_name)(share)(updated_at) )
+    EOSLIB_SERIALIZE( citycenter_t, (id)(citycenter_name)(citycenter_account)(share)
+                                    (created_at)(updated_at) )
 };
 
 struct CONTRACT_TBL user_t {
@@ -220,32 +235,6 @@ struct CONTRACT_TBL day_certified_t {
 
     EOSLIB_SERIALIZE( day_certified_t, (user)(certified_at) )
 };
-    
-/**
- * reset after reward, but reward might not happen as scheduled
- * hence there could be accumulation or records within
- */
-struct CONTRACT_TBL shop_top_pool_t {
-    uint64_t id;
-    name customer;
-    uint64_t spening;
-    time_point_sec spent_at;
-};
-
-/**
- * reset after reward, but reward might not happen as scheduled
- * hence there could be accumulation or records within
- */
-struct CONTRACT_TBL certified_user_pool_t {
-    name account;
-    time_point_sec certified_at;
-};
-
-struct CONTRACT_TBL platform_top_pool_t {
-    name account;
-    time_point_sec certified_at;
-};
 
 
-
-}
+} //end of namespace ayj

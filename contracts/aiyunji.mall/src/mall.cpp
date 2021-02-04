@@ -5,10 +5,6 @@
 
 namespace ayj {
 
-ACTION ayj_mall::init() {
-	//init mall symbol
-	_cstate.mall_bank = "aiyunji.coin"_n;
-}
 
 void ayj_mall::credit_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
 	auto spent_at = current_time_point();
@@ -141,7 +137,7 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& the_user, const na
 }
          
 ACTION ayj_mall::registershop(const name& issuer, const name& referrer, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& shop_account) {
-	CHECK( issuer == _cstate.platform_admin, "" )
+	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
 	require_auth( issuer );
 
 	shop_t::tbl_t shops(_self, _self.value);
@@ -155,6 +151,24 @@ ACTION ayj_mall::registershop(const name& issuer, const name& referrer, const ui
 
 }
 
+ACTION ayj_mall::registercc(const name& issuer, const name& cc_name, const name& cc_account) {
+	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
+	require_auth( issuer );
+
+	citycenter_t::tbl_t ccs(_self, _self.value);
+	auto idx = ccs.get_index<"ccname"_n>();
+	auto itr = idx.lower_bound(cc_name.value);
+
+	CHECK( itr != idx.end(), "citycenter name already registered: " + cc_name.to_string() )
+
+	ccs.emplace(_self, [&](auto& row)  {
+		row.id 					= ccs.available_primary_key();
+		row.citycenter_name 	= cc_name;
+		row.citycenter_account 	= cc_account;
+		row.created_at 			= time_point_sec( current_time_point() );
+	});
+}
+
 ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 	require_auth( issuer );
 	CHECK( issuer == _cstate.platform_admin, "issuer not platform admin: " )
@@ -165,7 +179,10 @@ ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 	_dbc.set(daycert);
 }
 
-
+ACTION ayj_mall::init() {
+	//init mall symbol
+	_cstate.mall_bank = "aiyunji.coin"_n;
+}
 
 ACTION ayj_mall::execute() {
 	if (!reward_shops()) return;
@@ -288,7 +305,7 @@ bool ayj_mall::reward_shops() {
 	CHECK( itr++ != shops.end(), "shop not found" + to_string(itr->id) )
 
 	uint8_t step = 0;
-	for (; itr != shops.end() && step < _cstate.ITR_MAX; itr++, step++) {
+	for (; itr != shops.end() && step < MAX_STEP; itr++, step++) {
 		if (!reward_shop(itr->id)) return false;
 
 		_gstate2.last_reward_shop_id = itr->id;			
@@ -311,7 +328,7 @@ bool ayj_mall::reward_certified() {
 	day_certified_t::tbl_t new_users(_self, _self.value);
 	uint8_t step = 0;
 	auto itr = new_users.begin();
-	for (; itr != new_users.end() && step++ < _cstate.ITR_MAX;) {
+	for (; itr != new_users.end() && step++ < MAX_STEP;) {
 		TRANSFER( _cstate.mall_bank, itr->user, quant, "cert reward" )
 
 		itr = new_users.erase(itr);

@@ -61,6 +61,9 @@ namespace ayj {
          void registershop(const name& issuer, const name& referrer, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& shop_account);
 
          [[eosio::action]]
+         void registercc(const name& issuer, const name& cc_name, const name& cc_account);
+
+         [[eosio::action]]
          void certifyuser(const name& issuer, const name& user);
 
          [[eosio::action]]
@@ -76,6 +79,7 @@ namespace ayj {
          using transfer_action      = action_wrapper<"transfer"_n,      &ayj_mall::creditspend >;
          using registeruser_action  = action_wrapper<"registeruser"_n,  &ayj_mall::registeruser >;
          using registershop_action  = action_wrapper<"registershop"_n,  &ayj_mall::registershop >;
+         using registercc_action    = action_wrapper<"registercc"_n,    &ayj_mall::registercc >;
          using certifyuser_action   = action_wrapper<"certifyuser"_n,   &ayj_mall::certifyuser >;
          using execute_action       = action_wrapper<"execute"_n,       &ayj_mall::execute >;
          using withdraw_action      = action_wrapper<"withdraw"_n,      &ayj_mall::withdraw >;
