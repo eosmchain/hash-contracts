@@ -5,13 +5,9 @@
 
 namespace ayj {
 
-inline void ayj_mall::credit_user(const asset& total_share, const name& from) {
-	//user:		45%
-	user_t user(from);
-	CHECK( !_dbc.get( user ), "user not registered: " + from.to_string() );
-
+inline void ayj_mall::credit_user(const asset& total_share, user_t& user) {
 	auto share0 = total_share * _cstate.allocation_ratios[0] / ratio_boost;
-	user.spending_reward += share0;
+	user.spending_reward += share0; 	//user:		45%
 
 	_dbc.set( user );
 }
@@ -39,26 +35,43 @@ inline void ayj_mall::credit_platform_top(const asset& total_share) {
 inline void ayj_mall::credit_citycenter(const asset& total_share, const uint64_t& citycenter_id) {
 	citycenter_t cc(citycenter_id);
 	CHECK( _dbc.get(cc), "Err: citycenter not found: " + to_string(citycenter_id) )
-
-	auto share6 = total_share * _cstate.allocation_ratios[6] / ratio_boost; 
-	cc.share += share6; //citycenter:	3%
+	auto share7 = total_share * _cstate.allocation_ratios[7] / ratio_boost; 
+	cc.share += share7; //citycenter:	3%
 
 	_dbc.set( cc );
 }
 
-inline void ayj_mall::credit_referral(const asset& total_share) {
+inline void ayj_mall::credit_referrer(const asset& total_share, const user_t& user, const shop_t& shop) {
+	auto share5 = total_share * _cstate.allocation_ratios[5] / ratio_boost; //direct-referral:	15%
+	auto share6 = total_share * _cstate.allocation_ratios[6] / ratio_boost;	//direct-referral:	5%
 
-	//TODO: referral/agent
-	//direct-referral:	20%
-	//agent:		5%
+	if (is_account( user.referral_account)) {
+		user_t referrer(user.referral_account);
+		CHECK( _dbc.get(referrer), "customer referrer not registered: " + user.referral_account.to_string() )
+		referrer.customer_referral_reward += share5;
+		_dbc.set( referrer );
+
+	} else {
+		_gstate.lucky_draw_share += share5;
+	}
+
+	if (is_account( shop.referral_account)) {
+		user_t referrer(user.referral_account);
+		CHECK( _dbc.get(referrer), "shop referrer not registered: " + user.referral_account.to_string() )
+		referrer.customer_referral_reward += share6;
+		_dbc.set( referrer );
+
+	} else {
+		_gstate.lucky_draw_share += share6;
+	}
 }
 
 inline void ayj_mall::credit_ramusage(const asset& total_share) {
-	auto share7 = total_share * _cstate.allocation_ratios[7] / ratio_boost; 
-	_gstate.ram_usage_share += share7; //ram-usage:	4%
+	auto share8 = total_share * _cstate.allocation_ratios[8] / ratio_boost; 
+	_gstate.ram_usage_share += share8; //ram-usage:	4%
 }
 
-void ayj_mall::credit_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
+void ayj_mall::log_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
 	auto spent_at = current_time_point();
 
 	day_spending_t::tbl_t day_spends(_self, shop_id);
@@ -81,7 +94,7 @@ void ayj_mall::credit_day_spending(const asset& quant, const name& customer, con
 	}
 }
 
-void ayj_mall::credit_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
+void ayj_mall::log_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
 	auto spent_at = current_time_point();
 
 	total_spending_t::tbl_t total_spends(_self, _self.value);
@@ -122,25 +135,28 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 
 	vector<string_view> params = split(memo, "@");	
 	CHECK( params.size() == 2, "memo must be of <user_account>@<shop_id>" )
+
 	auto user_acct 	= name( parse_uint64(params[0]) );
 	CHECK( is_account(user_acct), "user account not valid: " + std::string(params[0]) )
+	user_t user(user_acct);
+	CHECK( !_dbc.get( user ), "user not registered: " + user_acct.to_string() );
+
 	auto shop_id 	= parse_uint64(params[1]);
-	
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 	auto cc_id 		= shop.citycenter_id;
 
 	_gstate.platform_total_spending += quantity;
+	log_day_spending( quantity, user_acct, shop_id );
+	log_total_spending( quantity, user_acct, shop_id );
 
-	credit_day_spending(quantity, user_acct, shop_id);
-	credit_total_spending(quantity, user_acct, shop_id);
-	credit_user(quantity, user_acct);
-	credit_shop(quantity, shop);
-	credit_certified(quantity);
-	credit_platform_top(quantity);
-	credit_referral(quantity);
-	credit_citycenter(quantity, cc_id);
-	credit_ramusage(quantity);
+	credit_user				( quantity, user );
+	credit_shop				( quantity, shop );
+	credit_certified		( quantity );
+	credit_platform_top		( quantity );
+	credit_referrer			( quantity, user, shop );
+	credit_citycenter		( quantity, cc_id );
+	credit_ramusage			( quantity );
 
 }
 

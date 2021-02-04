@@ -91,10 +91,10 @@ namespace ayj {
          inline void credit_certified(const asset& total_share);
          inline void credit_platform_top(const asset& total_share);
          inline void credit_citycenter(const asset& total_share, const uint64_t& citycenter_id);
-         inline void credit_referral(const asset& total_share);
+         inline void credit_referrer(const asset& total_share);
          inline void credit_ramusage(const asset& total_share);
-         inline void credit_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
-         inline void credit_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
+         inline void log_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
+         inline void log_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
          inline bool reward_shops();
          inline bool reward_shop(const uint64_t& shop_id);
          inline bool reward_certified();

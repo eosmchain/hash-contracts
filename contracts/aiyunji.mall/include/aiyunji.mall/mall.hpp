@@ -86,15 +86,15 @@ namespace ayj {
          // using withdrawx_action     = action_wrapper<"withdrawx"_n,     &ayj_mall::withdrawx >;
 
       private:
-         inline void credit_user(const asset& total_share, const name& from);
+         inline void credit_user(const asset& total_share, user_t& user);
          inline void credit_shop(const asset& total_share, shop_t& shop);
          inline void credit_certified(const asset& total_share);
          inline void credit_platform_top(const asset& total_share);
          inline void credit_citycenter(const asset& total_share, const uint64_t& citycenter_id);
-         inline void credit_referral(const asset& total_share);
+         inline void credit_referrer(const asset& total_share, const user_t& user, const shop_t& shop);
          inline void credit_ramusage(const asset& total_share);
-         inline void credit_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
-         inline void credit_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
+         inline void log_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
+         inline void log_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
          inline bool reward_shops();
          inline bool reward_shop(const uint64_t& shop_id);
          inline bool reward_certified();

@@ -46,7 +46,7 @@ inline void ayj_mall::credit_citycenter(const asset& total_share, const uint64_t
 	_dbc.set( cc );
 }
 
-inline void ayj_mall::credit_referral(const asset& total_share) {
+inline void ayj_mall::credit_referrer(const asset& total_share) {
 
 	//TODO: referral/agent
 	//direct-referral:	20%
@@ -58,7 +58,7 @@ inline void ayj_mall::credit_ramusage(const asset& total_share) {
 	_gstate.ram_usage_share += share7; //ram-usage:	4%
 }
 
-void ayj_mall::credit_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
+void ayj_mall::log_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
 	auto spent_at = current_time_point();
 
 	day_spending_t::tbl_t day_spends(_self, shop_id);
@@ -81,7 +81,7 @@ void ayj_mall::credit_day_spending(const asset& quant, const name& customer, con
 	}
 }
 
-void ayj_mall::credit_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
+void ayj_mall::log_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
 	auto spent_at = current_time_point();
 
 	total_spending_t::tbl_t total_spends(_self, _self.value);
@@ -125,13 +125,13 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 
-	credit_day_spending(quantity, from, shop_id);
-	credit_total_spending(quantity, from, shop_id);
+	log_day_spending(quantity, from, shop_id);
+	log_total_spending(quantity, from, shop_id);
 	credit_user(quantity, from);
 	credit_shop(quantity, shop);
 	credit_certified(quantity);
 	credit_platform_top(quantity);
-	credit_referral(quantity);
+	credit_referrer(quantity);
 	credit_citycenter(quantity, shop.citycenter_id);
 	credit_ramusage(quantity);
     

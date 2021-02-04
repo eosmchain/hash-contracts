@@ -35,15 +35,15 @@ struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
     uint16_t withdraw_fee_ratio         = 3000;  //boost by 10000
     uint16_t withdraw_mature_days       = 1;
     vector<uint64_t> allocation_ratios  = {
-        4500,   //user share
-        1500,   //shop_sunshine share
-        500,    //shop_top share
-        800,    //certified share
-        500,    //pltform_top share
-        1000,   //direct_referral share
-        500,    //direct_agent share
-        300,    //city_center share
-        400     //ram_usage share
+        4500,   //0: user share
+        1500,   //1: shop_sunshine share
+        500,    //2: shop_top share
+        800,    //3: certified share
+        500,    //4: pltform_top share
+        1000,   //5: direct_referral share
+        500,    //6: direct_agent share
+        300,    //7: city_center share
+        400     //8: ram_usage share
     };
     uint16_t platform_top_count         = 1000;
     uint16_t shop_top_count             = 10;
