@@ -42,27 +42,33 @@ inline void ayj_mall::credit_citycenter(const asset& total_share, const uint64_t
 }
 
 inline void ayj_mall::credit_referrer(const asset& total_share, const user_t& user, const shop_t& shop) {
-	auto share5 = total_share * _cstate.allocation_ratios[5] / ratio_boost; //direct-referral:	15%
-	auto share6 = total_share * _cstate.allocation_ratios[6] / ratio_boost;	//direct-referral:	5%
+	auto share5 = total_share * _cstate.allocation_ratios[5] / ratio_boost; //direct-referral:	10%
+	auto share6 = total_share * _cstate.allocation_ratios[6] / ratio_boost;	//agent-referral:	5%
 
-	if (is_account( user.referral_account)) {
+	if (is_account( user.referral_account) && user.referral_account != shop.shop_account) {
+		user_t referrer(user.referral_account);
+		CHECK( _dbc.get(referrer), "customer referrer not registered: " + user.referral_account.to_string() )
+		referrer.customer_referral_reward += share5;
+		_dbc.set( referrer );
+		_gstate.lucky_draw_share += share6;
+
+	} else if (user.referral_account == shop.shop_account) { //referred within the shop
 		user_t referrer(user.referral_account);
 		CHECK( _dbc.get(referrer), "customer referrer not registered: " + user.referral_account.to_string() )
 		referrer.customer_referral_reward += share5;
 		_dbc.set( referrer );
 
-	} else {
-		_gstate.lucky_draw_share += share5;
-	}
+		if (is_account( shop.referral_account)) {
+			user_t referrer(user.referral_account);
+			CHECK( _dbc.get(referrer), "shop referrer not registered: " + user.referral_account.to_string() )
+			referrer.customer_referral_reward += share6;
+			_dbc.set( referrer );
 
-	if (is_account( shop.referral_account)) {
-		user_t referrer(user.referral_account);
-		CHECK( _dbc.get(referrer), "shop referrer not registered: " + user.referral_account.to_string() )
-		referrer.customer_referral_reward += share6;
-		_dbc.set( referrer );
-
+		} else {
+			_gstate.lucky_draw_share += share6;
+		}
 	} else {
-		_gstate.lucky_draw_share += share6;
+		_gstate.lucky_draw_share += share5 + share6;
 	}
 }
 
