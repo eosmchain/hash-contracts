@@ -107,7 +107,7 @@ void ayj_mall::credit_total_spending(const asset& quant, const name& customer, c
  * 	@from: 		only admin user allowed
  *  @to: 		mall contract or self
  *  @quantity:	amount issued and transferred
- *  @memo: 		"<user_account>:<shop_id>"
+ *  @memo: 		"<user_account>@<shop_id>"
  * 		
  */
 void ayj_mall::creditspend(const name& from, const name& to, const asset& quantity, const string& memo) {
@@ -120,8 +120,8 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
 	CHECK( quantity.amount > 0, "creditspend quanity must be positive" )
 
-	vector<string_view> params = split(memo, ":");	
-	CHECK( params.size() == 2, "memo must be of <user_id>:<shop_id>" )
+	vector<string_view> params = split(memo, "@");	
+	CHECK( params.size() == 2, "memo must be of <user_account>@<shop_id>" )
 	auto user_acct 	= name( parse_uint64(params[0]) );
 	CHECK( is_account(user_acct), "user account not valid: " + std::string(params[0]) )
 	auto shop_id 	= parse_uint64(params[1]);
@@ -140,6 +140,7 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	credit_referral(quantity);
 	credit_citycenter(quantity, shop.citycenter_id);
 	credit_ramusage(quantity);
+	
 }
 
 /**
