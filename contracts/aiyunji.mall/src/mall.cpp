@@ -128,6 +128,7 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
+	auto cc_id 		= shop.citycenter_id;
 
 	_gstate.platform_total_spending += quantity;
 
@@ -138,9 +139,9 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	credit_certified(quantity);
 	credit_platform_top(quantity);
 	credit_referral(quantity);
-	credit_citycenter(quantity, shop.citycenter_id);
+	credit_citycenter(quantity, cc_id);
 	credit_ramusage(quantity);
-	
+
 }
 
 /**
