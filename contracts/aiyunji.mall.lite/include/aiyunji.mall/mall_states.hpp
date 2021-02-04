@@ -61,7 +61,7 @@ struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
 typedef eosio::singleton< "config"_n, config_t > config_singleton;
 
 struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
-    asset platform_total_spending       = asset(0, HST_SYMBOL);
+    asset platform_total_share       = asset(0, HST_SYMBOL);
     asset platform_top_share            = asset(0, HST_SYMBOL);
     asset ram_usage_share               = asset(0, HST_SYMBOL);
     asset lucky_draw_share              = asset(0, HST_SYMBOL);
@@ -70,7 +70,7 @@ struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
 
     global_t() {}
 
-    EOSLIB_SERIALIZE(global_t,  (platform_total_spending)(platform_top_share)
+    EOSLIB_SERIALIZE(global_t,  (platform_total_share)(platform_top_share)
                                 (ram_usage_share)(lucky_draw_share)(certified_user_share)
                                 (certified_user_count) )
 
@@ -171,33 +171,6 @@ struct CONTRACT_TBL shop_t {
                                 (total_customer_spending)(total_customer_day_spending)
                                 (shop_sunshine_share)(shop_top_share)(last_sunshine_reward_spending_id)
                                 (created_at)(updated_at)(rewarded_at) )
-};
-
-/**
- * accumulated spending for each customer and shop
- *  Top 1000 can be derived within
- */
-struct CONTRACT_TBL total_spending_t {
-    uint64_t id;
-    uint64_t shop_id;
-    name customer;
-    asset spending;  //accumulated ever since beginning
-    time_point_sec spent_at;
-
-    uint64_t scope() const { return 0; }  //platform-wise spending sorting, to derive top1000
-    uint64_t primary_key() const { return id; }
-    uint128_t shop_customer_key() const { return ((uint128_t)shop_id << 64) | customer.value; } //to ensure uniqueness
-
-    uint128_t by_shop_spending() const { return (uint128_t)shop_id << 64 | id; }
-    uint64_t by_spending() const { return std::numeric_limits<uint64_t>::max() - spending.amount; } //descending
- 
-    typedef eosio::multi_index
-    < "totalspends"_n, total_spending_t,
-        indexed_by<"shopcustomer"_n, const_mem_fun<total_spending_t, uint128_t, &total_spending_t::shop_customer_key> >,
-        indexed_by<"shopspends"_n, const_mem_fun<total_spending_t, uint128_t, &total_spending_t::by_shop_spending> >,
-        indexed_by<"spends"_n, const_mem_fun<total_spending_t, uint64_t, &total_spending_t::by_spending> >
-    > tbl_t;
-
 };
 
 struct CONTRACT_TBL day_spending_t {

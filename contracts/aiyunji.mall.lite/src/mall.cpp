@@ -81,28 +81,6 @@ void ayj_mall::log_day_spending(const asset& quant, const name& customer, const 
 	}
 }
 
-void ayj_mall::log_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
-	auto spent_at = current_time_point();
-
-	total_spending_t::tbl_t total_spends(_self, _self.value);
-	auto idx_ts = total_spends.get_index<"shopcustomer"_n>();
-	auto key_ts = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; 
-	auto itr_ts = idx_ts.lower_bound( key_ts );
-	if (itr_ts == idx_ts.end()) {
-		total_spends.emplace(_self, [&](auto& row)  {
-			row.id 			= total_spends.available_primary_key();
-			row.shop_id 	= shop_id;
-			row.customer 	= customer;
-			row.spending 	= quant;
-			row.spent_at 	= time_point_sec( current_time_point() );
-		});
-	} else {
-		total_spends.modify(*itr_ts, _self, [&](auto& row) {
-			row.spending 	+= quant;
-			row.spent_at 	= time_point_sec( current_time_point() );
-		});
-	}
-}
 /**
  * 	@from: 		only admin user allowed
  *  @to: 		mall contract or self
@@ -120,7 +98,7 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
 	CHECK( quantity.amount > 0, "creditspend quanity must be positive" )
 
-	_gstate.platform_total_spending += quantity;
+	_gstate.platform_total_share += quantity;
 	auto shop_id = parse_uint64(memo);
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
@@ -227,29 +205,7 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 	switch( withdraw_type ) {
 	case 0: // spending share removal 
 	{
-		shop_t shop(shop_id);
-		CHECK( _dbc.get(shop), "shop not found: " + to_string(shop_id) )
-		total_spending_t::tbl_t total_spends(_self, _self.value);
-		auto idx_ts = total_spends.get_index<"shopcustomer"_n>();
-		auto key_ts = ((uint128_t)shop_id << 64) | user.account.value;
-		auto itr_ts = idx_ts.lower_bound( key_ts );
-		CHECK( itr_ts != idx_ts.end(), "shop not found: " + to_string(shop_id) + " for " + user.account.to_string() )
-		CHECK( itr_ts->spent_at < now, "Err: spent_at time issue" )
-		CHECK( now.sec_since_epoch() - itr_ts->spent_at.sec_since_epoch() >= _cstate.withdraw_mature_days * seconds_per_day, "withdrwal time immature" )
-		CHECK( itr_ts->spending <= user.spending_reward, "Err: user share insufficient" )
 		
-		auto share_to_remove = itr_ts->spending;
-		idx_ts.erase( itr_ts );
-
-		user.spending_reward -= share_to_remove;
-		_dbc.set(user);
-
-		asset platform_fees = share_to_remove * _cstate.withdraw_fee_ratio / ratio_boost;
-		CHECK( platform_fees < share_to_remove, "Err: withdrawl fees oversized!" )
-		share_to_remove -= platform_fees;
-
-		TRANSFER( _cstate.mall_bank, _cstate.platform_account, share_to_remove, "fees" )
-		TRANSFER( _cstate.mall_bank, to, share_to_remove, "spend reward" )
 	}
 	break;
 	case 1: //customer referral reward withdrawl
@@ -276,22 +232,7 @@ bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 	CHECK( shop.rewarded_at.sec_since_epoch() % seconds_per_day < current_time_point().sec_since_epoch() % seconds_per_day, "shop sunshine reward already executed" )
 
-	auto spend_key = ((uint128_t) shop.id << 64) | _gstate2.last_sunshine_reward_spending_id;
-	total_spending_t::tbl_t total_spends(_self, _self.value);
-	auto spend_idx = total_spends.get_index<"shopspends"_n>();
-	auto lower_itr = spend_idx.lower_bound( spend_key );
-	uint8_t step = 0;
-	auto itr = lower_itr;
-	for (; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) { /// sunshine reward
-		shop.last_sunshine_reward_spending_id = itr->id;
-		_gstate2.last_sunshine_reward_spending_id = itr->id;
-		auto quant = (shop.shop_sunshine_share / shop.total_customer_spending) * itr->spending;
-
-		user_t user(itr->customer);
-		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
-
-		TRANSFER( _cstate.mall_bank, user.account, quant, "shop reward" )
-	}
+	
 
 	if (itr == spend_idx.end()) { /// top 10 reward
 		day_spending_t::tbl_t day_spends(_self, shop.id);
@@ -367,26 +308,7 @@ bool ayj_mall::reward_platform_top() {
 			!= current_time_point().sec_since_epoch() % seconds_per_day, "platform top users already rewarded" )
 
 	auto finished = false;
-	total_spending_t::tbl_t total_spends(_self, _self.value);
-	auto spend_idx = total_spends.get_index<"spends"_n>();
-	uint8_t step = 0;
-	auto itr = spend_idx.begin();
-	for (; itr != spend_idx.end() && step < MAX_STEP; itr++) { /// sunshine reward
-		if ( step++ < _gstate2.last_platform_top_reward_step) continue;
-		
-		_gstate2.last_platform_top_reward_step++;
-
-		user_t user(itr->customer);
-		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
-		
-		auto quant = (_gstate.platform_top_share / _gstate.platform_total_spending / _cstate.platform_top_count) * itr->spending;
-		TRANSFER( _cstate.mall_bank, user.account, quant, "shop reward" )
-	}
-
-	if (itr == spend_idx.end()) {
-		_gstate2.last_platform_reward_finished_at = time_point_sec( current_time_point() );
-		finished = true;
-	}
+	
 
 	return true;
 }

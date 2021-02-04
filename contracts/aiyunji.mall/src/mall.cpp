@@ -78,6 +78,29 @@ inline void ayj_mall::credit_ramusage(const asset& total_share) {
 	_gstate.ram_usage_share += share8; //ram-usage:	4%
 }
 
+void ayj_mall::log_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
+	auto spent_at = current_time_point();
+
+	total_spending_t::tbl_t total_spends(_self, _self.value);
+	auto idx_ts = total_spends.get_index<"shopcustomer"_n>();
+	auto key_ts = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; 
+	auto itr_ts = idx_ts.lower_bound( key_ts );
+	if (itr_ts == idx_ts.end()) {
+		total_spends.emplace(_self, [&](auto& row)  {
+			row.id          = total_spends.available_primary_key();
+			row.shop_id     = shop_id;
+			row.customer    = customer;
+			row.spending    = quant;
+			row.spent_at    = time_point_sec( current_time_point() );
+		});
+	} else {
+		total_spends.modify(*itr_ts, _self, [&](auto& row) {
+			row.spending    += quant;
+			row.spent_at    = time_point_sec( current_time_point() );
+		});
+	}
+}
+
 void ayj_mall::log_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
 	auto spent_at = current_time_point();
 
@@ -101,28 +124,6 @@ void ayj_mall::log_day_spending(const asset& quant, const name& customer, const 
 	}
 }
 
-void ayj_mall::log_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
-	auto spent_at = current_time_point();
-
-	total_spending_t::tbl_t total_spends(_self, _self.value);
-	auto idx_ts = total_spends.get_index<"shopcustomer"_n>();
-	auto key_ts = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; 
-	auto itr_ts = idx_ts.lower_bound( key_ts );
-	if (itr_ts == idx_ts.end()) {
-		total_spends.emplace(_self, [&](auto& row)  {
-			row.id 			= total_spends.available_primary_key();
-			row.shop_id 	= shop_id;
-			row.customer 	= customer;
-			row.spending 	= quant;
-			row.spent_at 	= time_point_sec( current_time_point() );
-		});
-	} else {
-		total_spends.modify(*itr_ts, _self, [&](auto& row) {
-			row.spending 	+= quant;
-			row.spent_at 	= time_point_sec( current_time_point() );
-		});
-	}
-}
 /**
  * 	@from: 		only admin user allowed
  *  @to: 		mall contract or self
@@ -153,7 +154,7 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 	auto cc_id 		= shop.citycenter_id;
 
-	_gstate.platform_total_spending += quantity;
+	_gstate.platform_total_share += quantity;
 	log_day_spending( quantity, user_acct, shop_id );
 	log_total_spending( quantity, user_acct, shop_id );
 
@@ -245,35 +246,36 @@ ACTION ayj_mall::execute() {
 	reward_platform_top();
 }
 
-ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, const uint64_t& shop_id) {
+/**
+ * @issuer: either user or platform admin who withdraws for user
+ * @to: the targer user to receive withdrawn amount
+ * @withdraw_type: 0: spending share; 1: referrer share; 2: agent share
+ * @quant: the amount to withdraw, when zero, it means withdraw whole amount
+ */
+ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, asset& quant) {
 	require_auth( issuer );
-	CHECK( withdraw_type < 3, "withdraw_type not valid: " + to_string(withdraw_type) )
 	CHECK( is_account(to), "to account not valid: " + to.to_string() )
+	CHECK( withdraw_type < 3, "withdraw_type not valid: " + to_string(withdraw_type) )
+	CHECK( quant.amount >= 0 && quant.symbol == HST_SYMBOL, "invalid withdraw quantity: " + quant.to_string() )
 
 	user_t user(to);
 	CHECK( _dbc.get(user), "to user not found: " + to.to_string() )
 	CHECK( issuer == _cstate.platform_admin || issuer == to, "withdraw other's reward not allowed" )
+	
+	CHECK( _gstate.platform_total_share >= quant, "platform total share insufficient to withdraw" )
+	_gstate.platform_total_share -= quant;
 
 	auto now = current_time_point();
+
 	switch( withdraw_type ) {
 	case 0: // spending share removal 
 	{
-		shop_t shop(shop_id);
-		CHECK( _dbc.get(shop), "shop not found: " + to_string(shop_id) )
-		total_spending_t::tbl_t total_spends(_self, _self.value);
-		auto idx_ts = total_spends.get_index<"shopcustomer"_n>();
-		auto key_ts = ((uint128_t)shop_id << 64) | user.account.value;
-		auto itr_ts = idx_ts.lower_bound( key_ts );
-		CHECK( itr_ts != idx_ts.end(), "shop not found: " + to_string(shop_id) + " for " + user.account.to_string() )
-		CHECK( itr_ts->spent_at < now, "Err: spent_at time issue" )
-		CHECK( now.sec_since_epoch() - itr_ts->spent_at.sec_since_epoch() >= _cstate.withdraw_mature_days * seconds_per_day, "withdrwal time immature" )
-		CHECK( itr_ts->spending <= user.spending_reward, "Err: user share insufficient" )
-		
-		auto share_to_remove = itr_ts->spending;
-		idx_ts.erase( itr_ts );
+		if (quant.amount == 0) quant = user.spending_reward;
+		CHECK( user.spending_reward >= quant, "spending_reward amount is over-withdrawn" )
 
-		user.spending_reward -= share_to_remove;
-		_dbc.set(user);
+		auto share_to_remove = quant;
+		user.spending_reward -= quant;
+		_dbc.set( user );
 
 		asset platform_fees = share_to_remove * _cstate.withdraw_fee_ratio / ratio_boost;
 		CHECK( platform_fees < share_to_remove, "Err: withdrawl fees oversized!" )
@@ -285,25 +287,31 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 	break;
 	case 1: //customer referral reward withdrawl
 	{
-		asset platform_fees = user.customer_referral_reward * _cstate.withdraw_fee_ratio / ratio_boost;
+		if (quant.amount == 0) quant = user.customer_referral_reward;
+		CHECK( user.customer_referral_reward >= quant, "customer_referral_reward amount is over-withdrawn" )
+
+		asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
 		CHECK( platform_fees < user.customer_referral_reward, "Err: withdrawl fees oversized!" )
 		user.customer_referral_reward -= platform_fees;
 
-		TRANSFER( _cstate.mall_bank, _cstate.platform_account, platform_fees, "fees" )
-		TRANSFER( _cstate.mall_bank, to, user.customer_referral_reward, "cref reward" )
-		user.customer_referral_reward.amount = 0;
+		TRANSFER( _cstate.mall_bank, _cstate.platform_account, platform_fees, "customer ref fees" )
+		TRANSFER( _cstate.mall_bank, to, quant, "customer ref reward" )
+		user.customer_referral_reward -= quant;
 		_dbc.set( user );
 	}
 	break;
 	case 2: //shop referral reward withdrawal
 	{
-		asset platform_fees = user.shop_referral_reward * _cstate.withdraw_fee_ratio / ratio_boost;
+		if (quant.amount == 0) quant = user.shop_referral_reward;
+		CHECK( user.shop_referral_reward >= quant, "shop_referral_reward amount is over-withdrawn" )
+
+		asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
 		CHECK( platform_fees < user.shop_referral_reward, "Err: withdrawl fees oversized!" )
 		user.shop_referral_reward -= platform_fees;
 
-		TRANSFER( _cstate.mall_bank, _cstate.platform_account, platform_fees, "fees" )
-		TRANSFER( _cstate.mall_bank, to, user.shop_referral_reward, "sref reward" )
-		user.shop_referral_reward.amount = 0;
+		TRANSFER( _cstate.mall_bank, _cstate.platform_account, platform_fees, "shop ref fees" )
+		TRANSFER( _cstate.mall_bank, to, quant, "shop ref reward" )
+		user.shop_referral_reward -= quant;
 		_dbc.set( user );
 	}
 	break;
@@ -408,24 +416,23 @@ bool ayj_mall::reward_platform_top() {
 			!= current_time_point().sec_since_epoch() % seconds_per_day, "platform top users already rewarded" )
 
 	auto finished = false;
-	total_spending_t::tbl_t total_spends(_self, _self.value);
-	auto spend_idx = total_spends.get_index<"spends"_n>();
-	uint8_t step = 0;
-	auto itr = spend_idx.begin();
-	for (; itr != spend_idx.end() && step < MAX_STEP; itr++) { /// sunshine reward
+	user_t::tbl_t users(_self, _self.value);
+	auto user_idx = users.get_index<"totalassets"_n>();
+	auto itr = user_idx.begin();
+	for (uint8_t step = 0; itr != user_idx.end() && step < MAX_STEP; itr++) { /// sunshine reward
 		if ( step++ < _gstate2.last_platform_top_reward_step) continue;
 		
 		_gstate2.last_platform_top_reward_step++;
+		if (_gstate2.last_platform_top_reward_step == _cstate.platform_top_count) break;
 
-		user_t user(itr->customer);
-		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
-		
-		auto quant = (_gstate.platform_top_share / _gstate.platform_total_spending / _cstate.platform_top_count) * itr->spending;
-		TRANSFER( _cstate.mall_bank, user.account, quant, "shop reward" )
+		//TODO: need to freeze total assets, platform top share, platform total share
+		auto amt = _gstate.platform_top_share.amount * itr->total_assets().amount / _gstate.platform_total_share.amount;
+		TRANSFER( _cstate.mall_bank, itr->account, asset(amt, HST_SYMBOL), "shop reward" )
 	}
 
-	if (itr == spend_idx.end()) {
+	if (itr == user_idx.end()) {
 		_gstate2.last_platform_reward_finished_at = time_point_sec( current_time_point() );
+		_gstate2.last_platform_top_reward_step = 0;
 		finished = true;
 	}
 

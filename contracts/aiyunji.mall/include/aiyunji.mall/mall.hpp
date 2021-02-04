@@ -70,7 +70,7 @@ namespace ayj {
          void execute(); //anyone can invoke, but usually by the platform
 
          [[eosio::action]] // user or admin to withdraw, type 0: spending, 1: customer referral, 2: shop referral
-         void withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, const uint64_t& shop_id);
+         void withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, asset& quant);
 
          // [[eosio::action]] // forced withdrawal to users in mining w/o spending for 35+ days
          // void withdrawx(const name& issuer, const name& to, const uint8_t& withdraw_type);

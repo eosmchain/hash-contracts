@@ -61,7 +61,7 @@ struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
 typedef eosio::singleton< "config"_n, config_t > config_singleton;
 
 struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
-    asset platform_total_spending       = asset(0, HST_SYMBOL);
+    asset platform_total_share          = asset(0, HST_SYMBOL);
     asset platform_top_share            = asset(0, HST_SYMBOL);
     asset ram_usage_share               = asset(0, HST_SYMBOL);
     asset lucky_draw_share              = asset(0, HST_SYMBOL);
@@ -70,7 +70,7 @@ struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
 
     global_t() {}
 
-    EOSLIB_SERIALIZE(global_t,  (platform_total_spending)(platform_top_share)
+    EOSLIB_SERIALIZE(global_t,  (platform_total_share)(platform_top_share)
                                 (ram_usage_share)(lucky_draw_share)(certified_user_share)
                                 (certified_user_count) )
 
@@ -127,11 +127,19 @@ struct CONTRACT_TBL user_t {
 
     user_t(){}
     user_t(const name& a): account(a) {}
+    asset total_assets() const { return spending_reward + customer_referral_reward + shop_referral_reward; }
 
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return account.value; }
+    
+    uint64_t by_total_assets() const {
+        auto total = spending_reward + customer_referral_reward + shop_referral_reward;
+        return std::numeric_limits<uint64_t>::max() - total.amount;
+    }
 
-    typedef eosio::multi_index<"users"_n, user_t> tbl_t;
+    typedef eosio::multi_index<"users"_n, user_t,
+        indexed_by<"totalassets"_n, const_mem_fun<user_t, uint64_t, &user_t::by_total_assets> >
+    > tbl_t;
 
     EOSLIB_SERIALIZE( user_t,   (account)(referral_account)
                                 (spending_reward)(customer_referral_reward)(shop_referral_reward)
@@ -173,9 +181,9 @@ struct CONTRACT_TBL shop_t {
                                 (created_at)(updated_at)(rewarded_at) )
 };
 
+
 /**
- * accumulated spending for each customer and shop
- *  Top 1000 can be derived within
+ * accumulated spending for each customer and shop for sunshine reward
  */
 struct CONTRACT_TBL total_spending_t {
     uint64_t id;
