@@ -107,7 +107,7 @@ void ayj_mall::credit_total_spending(const asset& quant, const name& customer, c
  * 	@from: 		only admin user allowed
  *  @to: 		mall contract or self
  *  @quantity:	amount issued and transferred
- *  @memo: 		"<user_id>:<shop_id>"
+ *  @memo: 		"<user_account>:<shop_id>"
  * 		
  */
 void ayj_mall::creditspend(const name& from, const name& to, const asset& quantity, const string& memo) {
@@ -120,21 +120,26 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
 	CHECK( quantity.amount > 0, "creditspend quanity must be positive" )
 
-	_gstate.platform_total_spending += quantity;
-	auto shop_id = parse_uint64(memo);
+	vector<string_view> params = split(memo, ":");	
+	CHECK( params.size() == 2, "memo must be of <user_id>:<shop_id>" )
+	auto user_acct 	= name( parse_uint64(params[0]) );
+	CHECK( is_account(user_acct), "user account not valid: " + std::string(params[0]) )
+	auto shop_id 	= parse_uint64(params[1]);
+	
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 
-	credit_day_spending(quantity, from, shop_id);
-	credit_total_spending(quantity, from, shop_id);
-	credit_user(quantity, from);
+	_gstate.platform_total_spending += quantity;
+
+	credit_day_spending(quantity, user_acct, shop_id);
+	credit_total_spending(quantity, user_acct, shop_id);
+	credit_user(quantity, user_acct);
 	credit_shop(quantity, shop);
 	credit_certified(quantity);
 	credit_platform_top(quantity);
 	credit_referral(quantity);
 	credit_citycenter(quantity, shop.citycenter_id);
 	credit_ramusage(quantity);
-    
 }
 
 /**
