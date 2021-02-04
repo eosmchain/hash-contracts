@@ -50,6 +50,7 @@ inline void ayj_mall::credit_referrer(const asset& total_share, const user_t& us
 		CHECK( _dbc.get(referrer), "customer referrer not registered: " + user.referral_account.to_string() )
 		referrer.customer_referral_reward += share5;
 		_dbc.set( referrer );
+
 		_gstate.lucky_draw_share += share6;
 
 	} else if (user.referral_account == shop.shop_account) { //referred within the shop
@@ -58,7 +59,7 @@ inline void ayj_mall::credit_referrer(const asset& total_share, const user_t& us
 		referrer.customer_referral_reward += share5;
 		_dbc.set( referrer );
 
-		if (is_account( shop.referral_account)) {
+		if (is_account(shop.referral_account)) {
 			user_t referrer(user.referral_account);
 			CHECK( _dbc.get(referrer), "shop referrer not registered: " + user.referral_account.to_string() )
 			referrer.customer_referral_reward += share6;
@@ -233,6 +234,7 @@ ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 ACTION ayj_mall::init() {
 	//init mall symbol
 	_cstate.mall_bank = "aiyunji.coin"_n;
+	_cstate.platform_account = "masteraychen"_n;
 }
 
 ACTION ayj_mall::execute() {
@@ -277,12 +279,17 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 		CHECK( platform_fees < share_to_remove, "Err: withdrawl fees oversized!" )
 		share_to_remove -= platform_fees;
 
-		TRANSFER( _cstate.mall_bank, _cstate.platform_account, share_to_remove, "fees" )
+		TRANSFER( _cstate.mall_bank, _cstate.platform_account, platform_fees, "fees" )
 		TRANSFER( _cstate.mall_bank, to, share_to_remove, "spend reward" )
 	}
 	break;
 	case 1: //customer referral reward withdrawl
 	{
+		asset platform_fees = user.customer_referral_reward * _cstate.withdraw_fee_ratio / ratio_boost;
+		CHECK( platform_fees < user.customer_referral_reward, "Err: withdrawl fees oversized!" )
+		user.customer_referral_reward -= platform_fees;
+
+		TRANSFER( _cstate.mall_bank, _cstate.platform_account, platform_fees, "fees" )
 		TRANSFER( _cstate.mall_bank, to, user.customer_referral_reward, "cref reward" )
 		user.customer_referral_reward.amount = 0;
 		_dbc.set( user );
@@ -290,6 +297,11 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 	break;
 	case 2: //shop referral reward withdrawal
 	{
+		asset platform_fees = user.shop_referral_reward * _cstate.withdraw_fee_ratio / ratio_boost;
+		CHECK( platform_fees < user.shop_referral_reward, "Err: withdrawl fees oversized!" )
+		user.shop_referral_reward -= platform_fees;
+
+		TRANSFER( _cstate.mall_bank, _cstate.platform_account, platform_fees, "fees" )
 		TRANSFER( _cstate.mall_bank, to, user.shop_referral_reward, "sref reward" )
 		user.shop_referral_reward.amount = 0;
 		_dbc.set( user );
