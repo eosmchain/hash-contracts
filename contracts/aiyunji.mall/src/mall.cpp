@@ -79,7 +79,7 @@ inline void ayj_mall::credit_ramusage(const asset& total_share) {
 }
 
 void ayj_mall::log_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
-	auto spent_at = current_time_point();
+	auto spent_at = time_point_sec( current_time_point() );
 
 	/// day spending
 	day_spending_t::tbl_t day_spends(_self, shop_id);
@@ -92,12 +92,12 @@ void ayj_mall::log_spending(const asset& quant, const name& customer, const uint
 			row.shop_id 	= shop_id;
 			row.customer 	= customer;
 			row.spending 	= quant;
-			row.spent_at 	= time_point_sec( current_time_point() );
+			row.spent_at 	= spent_at;
 		});
 	} else {
 		day_spends.modify(*itr_ds, _self, [&](auto& row) {
 			row.spending 	+= quant;
-			row.spent_at 	= time_point_sec( current_time_point() );
+			row.spent_at 	= spent_at;
 		});
 	}
 
@@ -112,12 +112,12 @@ void ayj_mall::log_spending(const asset& quant, const name& customer, const uint
 			row.shop_id     = shop_id;
 			row.customer    = customer;
 			row.spending    = quant;
-			row.spent_at    = time_point_sec( current_time_point() );
+			row.spent_at    = spent_at;
 		});
 	} else {
 		total_spends.modify(*itr_ts, _self, [&](auto& row) {
 			row.spending    += quant;
-			row.spent_at    = time_point_sec( current_time_point() );
+			row.spent_at    = spent_at;
 		});
 	}
 
