@@ -78,32 +78,10 @@ inline void ayj_mall::credit_ramusage(const asset& total_share) {
 	_gstate.ram_usage_share += share8; //ram-usage:	4%
 }
 
-void ayj_mall::log_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
+void ayj_mall::log_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
 	auto spent_at = current_time_point();
 
-	total_spending_t::tbl_t total_spends(_self, _self.value);
-	auto idx_ts = total_spends.get_index<"shopcustomer"_n>();
-	auto key_ts = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; 
-	auto itr_ts = idx_ts.lower_bound( key_ts );
-	if (itr_ts == idx_ts.end()) {
-		total_spends.emplace(_self, [&](auto& row)  {
-			row.id          = total_spends.available_primary_key();
-			row.shop_id     = shop_id;
-			row.customer    = customer;
-			row.spending    = quant;
-			row.spent_at    = time_point_sec( current_time_point() );
-		});
-	} else {
-		total_spends.modify(*itr_ts, _self, [&](auto& row) {
-			row.spending    += quant;
-			row.spent_at    = time_point_sec( current_time_point() );
-		});
-	}
-}
-
-void ayj_mall::log_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
-	auto spent_at = current_time_point();
-
+	/// day spending
 	day_spending_t::tbl_t day_spends(_self, shop_id);
 	auto idx_ds = day_spends.get_index<"daycustomer"_n>();
 	auto key_ds = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; 
@@ -122,6 +100,28 @@ void ayj_mall::log_day_spending(const asset& quant, const name& customer, const 
 			row.spent_at 	= time_point_sec( current_time_point() );
 		});
 	}
+
+	/// total spending (accumulated)
+	total_spending_t::tbl_t total_spends(_self, _self.value);
+	auto idx_ts = total_spends.get_index<"shopcustomer"_n>();
+	auto key_ts = (uint128_t (spent_at.sec_since_epoch() % seconds_per_day) << 64) | customer.value; 
+	auto itr_ts = idx_ts.lower_bound( key_ts );
+	if (itr_ts == idx_ts.end()) {
+		total_spends.emplace(_self, [&](auto& row)  {
+			row.id          = total_spends.available_primary_key();
+			row.shop_id     = shop_id;
+			row.customer    = customer;
+			row.spending    = quant;
+			row.spent_at    = time_point_sec( current_time_point() );
+		});
+	} else {
+		total_spends.modify(*itr_ts, _self, [&](auto& row) {
+			row.spending    += quant;
+			row.spent_at    = time_point_sec( current_time_point() );
+		});
+	}
+
+	_gstate.platform_total_share += quant;
 }
 
 /**
@@ -144,20 +144,17 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	vector<string_view> params = split(memo, "@");	
 	CHECK( params.size() == 2, "memo must be of <user_account>@<shop_id>" )
 
-	auto user_acct 	= name( parse_uint64(params[0]) );
+	auto user_acct 			= name( parse_uint64(params[0]) );
 	CHECK( is_account(user_acct), "user account not valid: " + std::string(params[0]) )
 	user_t user(user_acct);
 	CHECK( !_dbc.get( user ), "user not registered: " + user_acct.to_string() );
 
-	auto shop_id 	= parse_uint64(params[1]);
+	auto shop_id 			= parse_uint64(params[1]);
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	auto cc_id 		= shop.citycenter_id;
+	auto cc_id 				= shop.citycenter_id;
 
-	_gstate.platform_total_share += quantity;
-	log_day_spending( quantity, user_acct, shop_id );
-	log_total_spending( quantity, user_acct, shop_id );
-
+	log_spending			( quantity, user_acct, shop_id );
 	credit_user				( quantity, user );
 	credit_shop				( quantity, shop );
 	credit_certified		( quantity );
