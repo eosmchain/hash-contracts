@@ -145,8 +145,8 @@ struct CONTRACT_TBL shop_t {
     name shop_account;          //shop funds account
     name referral_account;
     
-    asset total_customer_spending           = asset(0, HST_SYMBOL);
-    asset total_customer_day_spending       = asset(0, HST_SYMBOL);
+    asset total_spending           = asset(0, HST_SYMBOL);
+    asset day_spending       = asset(0, HST_SYMBOL);
     asset shop_sunshine_share               = asset(0, HST_SYMBOL);
     asset shop_top_share                    = asset(0, HST_SYMBOL);;
 
@@ -168,7 +168,7 @@ struct CONTRACT_TBL shop_t {
     > tbl_t;
 
     EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter_id)(shop_account)(referral_account)
-                                (total_customer_spending)(total_customer_day_spending)
+                                (total_spending)(day_spending)
                                 (shop_sunshine_share)(shop_top_share)(last_sunshine_reward_spending_id)
                                 (created_at)(updated_at)(rewarded_at) )
 };
@@ -194,19 +194,19 @@ struct CONTRACT_TBL day_spending_t {
     
 };
 
-struct CONTRACT_TBL certified_user_t {
+struct CONTRACT_TBL certification_t {
     name user;
     time_point_sec certified_at;
 
-    certified_user_t() {}
-    certified_user_t(const name& u): user(u) { certified_at = time_point_sec( current_time_point() ); }
+    certification_t() {}
+    certification_t(const name& u): user(u) { certified_at = time_point_sec( current_time_point() ); }
 
     uint64_t scope() const { return 0; } //shop-wise spending sorting, to derive top10
     uint64_t primary_key() const { return user.value; }
 
-    typedef eosio::multi_index<"certusers"_n, certified_user_t> tbl_t;
+    typedef eosio::multi_index<"certusers"_n, certification_t> tbl_t;
 
-    EOSLIB_SERIALIZE( certified_user_t, (user)(certified_at) )
+    EOSLIB_SERIALIZE( certification_t, (user)(certified_at) )
 };
 
 

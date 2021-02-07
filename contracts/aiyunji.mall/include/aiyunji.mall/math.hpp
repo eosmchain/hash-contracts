@@ -2,9 +2,9 @@
 
 //#include <math.h>
 
-static constexpr int128_t HIGH_PRECISION_1 = 100000000000000000;   //17*0 behind 1
-static constexpr int128_t PRECISION_1      = 10000;                // 4*0 behind 1
-static constexpr int128_t PRECISION        = 4;
+static constexpr int128_t HIGH_PRECISION_1 = 100000000000000000;   //17**0 behind 1
+static constexpr int128_t PRECISION_1      = 100000000;            // 8**0 behind 1
+static constexpr int128_t PRECISION        = 8;
 
 namespace wasm { namespace safemath {
     template<typename T>

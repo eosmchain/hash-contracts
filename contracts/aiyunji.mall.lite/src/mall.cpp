@@ -172,7 +172,7 @@ ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 	CHECK( issuer == _cstate.platform_admin, "issuer not platform admin: " )
 	CHECK( is_account(user), "user account not valid" )
 
-	certified_user_t certuser(user);
+	certification_t certuser(user);
 	CHECK( !_dbc.get( certuser ), "user already certified" )
 	certuser.user = user;
 	certuser.certified_at = time_point_sec( current_time_point() );
@@ -242,7 +242,7 @@ bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 			user_t user(itr->customer);
 			CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
 
-			auto quant = (shop.shop_top_share / shop.total_customer_day_spending) * itr->spending;
+			auto quant = (shop.shop_top_share / shop.day_spending) * itr->spending;
 
 			TRANSFER( _cstate.mall_bank, user.account, quant, "shop top reward" )
 		}
@@ -285,7 +285,7 @@ bool ayj_mall::reward_certified() {
 
 	bool finished = false;
 	auto quant = _gstate.certified_user_share / _gstate.certified_user_count;
-	certified_user_t::tbl_t new_users(_self, _self.value);
+	certification_t::tbl_t new_users(_self, _self.value);
 	uint8_t step = 0;
 	auto itr = new_users.begin();
 	for (; itr != new_users.end() && step++ < MAX_STEP;) {

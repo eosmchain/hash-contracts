@@ -70,7 +70,7 @@ namespace ayj {
          void execute(); //anyone can invoke, but usually by the platform
 
          [[eosio::action]] // user or admin to withdraw, type 0: spending, 1: customer referral, 2: shop referral
-         void withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, asset& quant);
+         void withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, const uint64_t& shop_id);
 
          // [[eosio::action]] // forced withdrawal to users in mining w/o spending for 35+ days
          // void withdrawx(const name& issuer, const name& to, const uint8_t& withdraw_type);
@@ -87,6 +87,7 @@ namespace ayj {
 
       private:
          inline void log_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
+         // inline void log_share_event();
 
          inline void credit_user(const asset& total_share, user_t& user);
          inline void credit_shop(const asset& total_share, shop_t& shop);
@@ -100,6 +101,7 @@ namespace ayj {
          inline bool reward_shop(const uint64_t& shop_id);
          inline bool reward_certified();
          inline bool reward_platform_top();
+         // inline bool process_share_events();
    };
 
 }
