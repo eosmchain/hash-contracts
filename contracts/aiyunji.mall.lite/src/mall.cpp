@@ -175,7 +175,7 @@ ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 	certification_t certuser(user);
 	CHECK( !_dbc.get( certuser ), "user already certified" )
 	certuser.user = user;
-	certuser.certified_at = time_point_sec( current_time_point() );
+	certuser.created_at = time_point_sec( current_time_point() );
 	_dbc.set(certuser);
 }
 

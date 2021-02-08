@@ -5,11 +5,12 @@
 
 namespace ayj {
 
-//spending cache
-//user cache
-//shop cache
-//certify cache
-//platform cache
+///platform share cache
+inline void ayj_mall::update_share_cache() {
+	if (!_gstate.executing) _gstate.platform_share_cache = _gstate.platform_share;
+	_gstate.share_cache_updated = !_gstate.executing;
+}
+///user share cache
 inline void ayj_mall::update_share_cache(user_t& user) {
 	if (!_gstate.executing) {
 		user.share_cache = user.share;
@@ -17,7 +18,7 @@ inline void ayj_mall::update_share_cache(user_t& user) {
 	}
 	user.share_cache_updated 	= !_gstate.executing;
 }
-
+///shop share cache
 inline void ayj_mall::update_share_cache(shop_t& shop) {
 	if (!_gstate.executing) {
 		shop.share_cache = shop.share;
@@ -25,18 +26,13 @@ inline void ayj_mall::update_share_cache(shop_t& shop) {
 	}
 	shop.share_cache_updated 	= !_gstate.executing;
 }
-
+///spend share cache
 inline void ayj_mall::update_share_cache(spending_t& spend) {
 	if (!_gstate.executing) {
 		spend.share_cache = spend.share;
 		_gstate2.last_cache_update_spendingidx = spend.by_cache_update();
 	}
 	spend.share_cache_updated 	= !_gstate.executing;
-}
-
-inline void ayj_mall::update_share_cache() {
-	if (!_gstate.executing) _gstate.platform_share_cache = _gstate.platform_share;
-	_gstate.share_cache_updated = !_gstate.executing;
 }
 
 inline void ayj_mall::credit_user(const asset& total_share, user_t& user, const time_point_sec& now) {
@@ -121,10 +117,6 @@ inline void ayj_mall::credit_ramusage(const asset& total_share) {
 	_gstate.platform_share.ram_usage_share += share8; //ram-usage:	4%
 }
 
-// inline void ayj_mall::credit_platform_share() {
-
-// }
-
 void ayj_mall::log_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
 	auto spent_at = time_point_sec( current_time_point() );
 
@@ -140,15 +132,17 @@ void ayj_mall::log_spending(const asset& quant, const name& customer, const uint
 			row.share.day_spending		= quant;
 			row.share.total_spending 	= quant;
 			row.created_at 				= spent_at;
+
+			update_share_cache(row);
 		});
 	} else {
 		spends.modify(*itr, _self, [&](auto& row) {
 			row.share.day_spending 		+= quant;
 			row.share.total_spending 	+= quant;
+
+			update_share_cache(row);
 		});
 	}
-
-	_gstate.platform_share.total_share += quant;
 }
 
 /**
@@ -193,7 +187,6 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	credit_referrer			( quantity, user, shop, now );
 	credit_citycenter		( quantity, cc_id);
 	credit_ramusage			( quantity );
-
 }
 
 /**
@@ -256,7 +249,7 @@ ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 	certification_t certuser(user);
 	CHECK( !_dbc.get( certuser ), "user already certified" )
 	certuser.user = user;
-	certuser.certified_at = time_point_sec( current_time_point() );
+	certuser.created_at = time_point_sec( current_time_point() );
 	_dbc.set(certuser);
 
 	_gstate.platform_share.certified_user_count++;
@@ -274,18 +267,16 @@ ACTION ayj_mall::execute() {
 	CHECK( now.sec_since_epoch() > last_executed_at + seconds_per_halfday, "too early to execute: < 12 hours" )
 	
 	if (!_gstate.executing) {
-		_gstate.executing 				= true;
-		_gstate.platform_share_cache 	= _gstate.platform_share;
-		_gstate.platform_share.reset();
+		if (!update_all_caches()) return;
+
+		_gstate.executing = true;
 	}
 
 	if (!reward_shops()) 		return;
 	if (!reward_certified()) 	return;
 	if (!reward_platform_top()) return;
-	_gstate.executing = false; //execute completed
 
-	if (!update_all_caches()) return;
-	
+	_gstate.executing = false; //execute completed
 	_gstate2.last_executed_at = now;
 }
 
@@ -479,8 +470,7 @@ bool ayj_mall::reward_platform_top() {
 
 inline bool ayj_mall::update_all_caches() {
 
-	// platform share cache
-	update_share_cache();
+	update_share_cache(); // platform share cache
 
 	user_t::tbl_t users(_self, _self.value);
 	auto user_idx = users.get_index<"cacheupdt"_n>();
@@ -497,7 +487,7 @@ inline bool ayj_mall::update_all_caches() {
 	auto shop_itr = shop_idx.upper_bound(_gstate2.last_cache_update_shopidx);
 	for (auto step = 0; shop_itr != shop_idx.end() && step < MAX_STEP; shop_itr++, step++) {
 		shop_t shop(shop_itr->id);
-		CHECK( _dbc.get(shop), "Err: shopt not found: " + to_string(shop_itr->id) )
+		CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_itr->id) )
 		update_share_cache(shop);
 	}
 	if (shop_itr != shop_idx.end() && !shop_itr->share_cache_updated) return false;

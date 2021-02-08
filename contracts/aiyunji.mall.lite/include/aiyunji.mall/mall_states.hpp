@@ -196,17 +196,17 @@ struct CONTRACT_TBL day_spending_t {
 
 struct CONTRACT_TBL certification_t {
     name user;
-    time_point_sec certified_at;
+    time_point_sec created_at;
 
     certification_t() {}
-    certification_t(const name& u): user(u) { certified_at = time_point_sec( current_time_point() ); }
+    certification_t(const name& u): user(u) { created_at = time_point_sec( current_time_point() ); }
 
     uint64_t scope() const { return 0; } //shop-wise spending sorting, to derive top10
     uint64_t primary_key() const { return user.value; }
 
     typedef eosio::multi_index<"certusers"_n, certification_t> tbl_t;
 
-    EOSLIB_SERIALIZE( certification_t, (user)(certified_at) )
+    EOSLIB_SERIALIZE( certification_t, (user)(created_at) )
 };
 
 
