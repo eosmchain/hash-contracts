@@ -16,7 +16,7 @@ namespace ayj {
     * eosio.token contract defines the structures and actions that allow users to create, issue, and manage
     * tokens on eosio based blockchains.
     */
-   class [[eosio::contract("aiyunji.mall")]] ayj_mall : public contract {
+   class [[eosio::contract("aiyunji.mall.lite")]] ayj_mall : public contract {
       private:
          dbc                 _dbc;
 
@@ -94,7 +94,6 @@ namespace ayj {
          inline void credit_referrer(const asset& total_share);
          inline void credit_ramusage(const asset& total_share);
          inline void log_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
-         inline void log_total_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
          inline bool reward_shops();
          inline bool reward_shop(const uint64_t& shop_id);
          inline bool reward_certified();

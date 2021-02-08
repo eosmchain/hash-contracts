@@ -104,7 +104,6 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 
 	log_day_spending(quantity, from, shop_id);
-	log_total_spending(quantity, from, shop_id);
 	credit_user(quantity, from);
 	credit_shop(quantity, shop);
 	credit_certified(quantity);
@@ -226,34 +225,8 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 }
 
 bool ayj_mall::reward_shop(const uint64_t& shop_id) {
-	auto finished = false;
 
-	shop_t shop(shop_id);
-	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	CHECK( shop.rewarded_at.sec_since_epoch() % seconds_per_day < current_time_point().sec_since_epoch() % seconds_per_day, "shop sunshine reward already executed" )
-
-	
-
-	if (itr == spend_idx.end()) { /// top 10 reward
-		day_spending_t::tbl_t day_spends(_self, shop.id);
-		auto spend_idx = day_spends.get_index<"spends"_n>();
-		uint8_t step = 0;
-		for (auto itr = spend_idx.begin(); itr != spend_idx.end() && step < _cstate.shop_top_count; itr++, step++) {
-			user_t user(itr->customer);
-			CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
-
-			auto quant = (shop.shop_top_share / shop.day_spending) * itr->spending;
-
-			TRANSFER( _cstate.mall_bank, user.account, quant, "shop top reward" )
-		}
-		shop.rewarded_at = time_point_sec( current_time_point() );
-		_dbc.set( shop );
-
-		finished = true;
-		_gstate2.last_sunshine_reward_spending_id = 0;
-	}
-
-	return finished;
+	return true;
 }
 
 bool ayj_mall::reward_shops() {
