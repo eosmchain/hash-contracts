@@ -178,7 +178,7 @@ struct CONTRACT_TBL user_t {
                                 (created_at)(updated_at) )
 };
 
-struct CONTRACT_TBL shop_share_t {
+struct shop_share_t {
     asset total_spending                    = asset(0, HST_SYMBOL);
     asset day_spending                      = asset(0, HST_SYMBOL);
     asset sunshine_share                    = asset(0, HST_SYMBOL);
@@ -240,7 +240,7 @@ struct CONTRACT_TBL shop_t {
                                 (share)(share_cache)(share_cache_updated)(created_at)(updated_at) )
 };
 
-struct CONTRACT_TBL spending_share_t {
+struct spending_share_t {
     asset day_spending;     //accumulated for day(s), reset after reward
     asset total_spending;   //accumulated continuously, never reset
 };
