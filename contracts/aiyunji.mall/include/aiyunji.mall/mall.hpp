@@ -101,7 +101,7 @@ namespace ayj {
          inline bool reward_certified();
          inline bool reward_platform_top();
 
-         inline bool update_all_caches();
+         bool update_all_caches();
          inline void update_share_cache();
          inline void update_share_cache(user_t& user);
          inline void update_share_cache(shop_t& shop);

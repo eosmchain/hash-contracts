@@ -316,8 +316,11 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 		auto quant = itr->share_cache.total_spending;
 		CHECK( _gstate.platform_share.total_share >= quant, "platform total share insufficient to withdraw" )
 		_gstate.platform_share.total_share -= quant;
-
+		update_share_cache();
+		
 		user.share.spending_reward -= quant;
+		update_share_cache( user );
+
 		_dbc.set( user );
 		idx.erase(itr);
 
@@ -332,6 +335,7 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 	{
 		auto quant = user.share.customer_referral_reward;
 		user.share.customer_referral_reward.amount = 0;
+		update_share_cache( user );
 		_dbc.set( user );
 
 		asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
@@ -346,6 +350,7 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 	{
 		auto quant = user.share.shop_referral_reward;
 		user.share.shop_referral_reward.amount = 0;
+		update_share_cache( user );
 		_dbc.set( user );
 
 		asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
@@ -473,7 +478,7 @@ bool ayj_mall::reward_platform_top() {
 	return false;
 }
 
-inline bool ayj_mall::update_all_caches() {
+bool ayj_mall::update_all_caches() {
 
 	update_share_cache(); // platform share cache
 
