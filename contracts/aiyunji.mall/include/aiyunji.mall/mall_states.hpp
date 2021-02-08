@@ -30,8 +30,6 @@ static constexpr uint32_t seconds_per_hour      = 3600;
 static constexpr uint32_t ratio_boost           = 10000;
 static constexpr uint32_t MAX_STEP              = 20;
 
-// static uint256_t uint256_default      =  uint256_t::make_from_word_sequence<uint64_t>(0ULL,0ULL,0ULL,0ULL);
-
 #define CONTRACT_TBL [[eosio::table, eosio::contract("aiyunji.mall")]]
 
 struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
@@ -83,10 +81,11 @@ struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
     bool executing = false;
     platform_share_t platform_share;
     platform_share_t platform_share_cache; //cached in executing
+    bool share_cache_updated = false;
 
     global_t() {}
 
-    EOSLIB_SERIALIZE(global_t,  (executing)(platform_share)(platform_share_cache) )
+    EOSLIB_SERIALIZE(global_t,  (executing)(platform_share)(platform_share_cache)(share_cache_updated) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
@@ -131,7 +130,7 @@ struct CONTRACT_TBL citycenter_t {
                                     (created_at)(updated_at) )
 };
 
-struct CONTRACT_TBL user_share_t {
+struct user_share_t {
     asset spending_reward           = asset(0, HST_SYMBOL);
     asset customer_referral_reward  = asset(0, HST_SYMBOL);
     asset shop_referral_reward      = asset(0, HST_SYMBOL);
@@ -146,6 +145,7 @@ struct CONTRACT_TBL user_t {
     name referral_account;
     user_share_t share;
     user_share_t share_cache;
+    bool share_cache_updated = false;
     time_point_sec created_at;
     time_point_sec updated_at;
 
@@ -164,7 +164,7 @@ struct CONTRACT_TBL user_t {
         indexed_by<"totalrewards"_n, const_mem_fun<user_t, uint128_t, &user_t::by_total_rewards> >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( user_t,   (account)(referral_account)(share)(share_cache)
+    EOSLIB_SERIALIZE( user_t,   (account)(referral_account)(share)(share_cache)(share_cache_updated)
                                 (created_at)(updated_at) )
 };
 
@@ -181,6 +181,19 @@ struct CONTRACT_TBL shop_share_t {
     }
 };
 
+struct spend_index_t {
+    uint64_t shop_id    = 0;
+    uint64_t spending_id= 0;
+    asset spending      = asset(0, HST_SYMBOL);
+
+    spend_index_t() {}
+    spend_index_t(const uint64_t& shid, const uint64_t& spid, const asset& sp): shop_id(shid), spending_id(spid), spending(sp) {}
+
+    uint256_t get_index() {
+        return uint256_t::make_from_word_sequence<uint64_t>(shop_id, std::numeric_limits<uint64_t>::max() - spending.amount, spending_id, 0ULL);
+    }
+};
+
 struct CONTRACT_TBL shop_t {
     uint64_t id;                //shop_id
     uint64_t parent_id;         //0 means top
@@ -189,10 +202,11 @@ struct CONTRACT_TBL shop_t {
     name referral_account;
     uint64_t top_reward_count               = 10;   //can be customized by shop admin
     uint64_t top_rewarded_count             = 0;
-    uint256_t last_sunshine_reward_spend_idx;// = uint256_default; //spending_t::id
-    uint256_t last_top_reward_spend_idx;     //= uint256_default; //spending_t::id
+    spend_index_t last_sunshine_reward_spend_idx; //spending_t::id
+    spend_index_t last_top_reward_spend_idx; //spending_t::id
     shop_share_t share;
     shop_share_t share_cache;
+    bool share_cache_updated = false;
     time_point_sec created_at;
     time_point_sec updated_at;
 
@@ -210,7 +224,7 @@ struct CONTRACT_TBL shop_t {
 
     EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter_id)(shop_account)(referral_account)
                                 (top_reward_count)(top_rewarded_count)(last_sunshine_reward_spend_idx)(last_top_reward_spend_idx)
-                                (share)(share_cache)(created_at)(updated_at) )
+                                (share)(share_cache)(share_cache_updated)(created_at)(updated_at) )
 };
 
 struct CONTRACT_TBL spending_share_t {
@@ -224,6 +238,7 @@ struct CONTRACT_TBL spending_t {
     name customer;
     spending_share_t share;
     spending_share_t share_cache;
+    bool share_cache_updated = false;
     time_point_sec created_at;
 
     uint64_t scope() const { return 0; }
@@ -243,7 +258,7 @@ struct CONTRACT_TBL spending_t {
         indexed_by<"shopspends"_n,  const_mem_fun<spending_t, uint256_t, &spending_t::by_shop_day_spending> >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( spending_t, (id)(shop_id)(customer)(share)(share_cache)(created_at) )
+    EOSLIB_SERIALIZE( spending_t, (id)(shop_id)(customer)(share)(share_cache)(share_cache_updated)(created_at) )
 };
 
 struct CONTRACT_TBL certification_t {

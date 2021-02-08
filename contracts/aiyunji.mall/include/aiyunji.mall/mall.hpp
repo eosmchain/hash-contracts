@@ -87,21 +87,22 @@ namespace ayj {
 
       private:
          inline void log_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
-         // inline void log_share_event();
 
-         inline void credit_user(const asset& total_share, user_t& user);
-         inline void credit_shop(const asset& total_share, shop_t& shop);
+         inline void credit_user(const asset& total_share, user_t& user, const time_point_sec& now);
+         inline void credit_shop(const asset& total_share, shop_t& shop, const time_point_sec& now);
          inline void credit_certified(const asset& total_share);
          inline void credit_platform_top(const asset& total_share);
+         inline void credit_referrer(const asset& total_share, const user_t& user, const shop_t& shop, const time_point_sec& now);
          inline void credit_citycenter(const asset& total_share, const uint64_t& citycenter_id);
-         inline void credit_referrer(const asset& total_share, const user_t& user, const shop_t& shop);
          inline void credit_ramusage(const asset& total_share);
          
          inline bool reward_shops();
          inline bool reward_shop(const uint64_t& shop_id);
          inline bool reward_certified();
          inline bool reward_platform_top();
-         // inline bool process_share_events();
+         inline void update_platform_share_cache();
+         inline void update_user_share_cache(user_t& user);
+         inline void update_shop_share_cache(shop_t& shop);
    };
 
 }
