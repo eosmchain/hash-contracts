@@ -5,6 +5,10 @@
 
 namespace ayj {
 
+inline bool ayj_mall::is_today(const time_point_sec& time) {
+	return time.sec_since_epoch() % seconds_per_day == current_time_point().sec_since_epoch() % seconds_per_day;
+}
+
 ///platform share cache
 inline void ayj_mall::update_share_cache() {
 	if (!_gstate.executing) _gstate.platform_share_cache = _gstate.platform_share;
@@ -119,6 +123,8 @@ inline void ayj_mall::credit_ramusage(const asset& total_share) {
 
 void ayj_mall::log_spending(const asset& quant, const name& customer, const uint64_t& shop_id) {
 	auto spent_at = time_point_sec( current_time_point() );
+
+	_gstate.platform_share.total_share += quant;
 
 	spending_t::tbl_t spends(_self, _self.value);
 	auto idx = spends.get_index<"shopcustidx"_n>();
@@ -355,7 +361,7 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	CHECK( shop.updated_at.sec_since_epoch() % seconds_per_day < current_time_point().sec_since_epoch() % seconds_per_day, "shop sunshine reward already executed" )
+	CHECK( !is_today(shop.updated_at), "shop sunshine reward already executed" )
 
 	if (shop.top_rewarded_count == 0) {
 		shop.share_cache = shop.share;
@@ -398,8 +404,7 @@ bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 }
 
 bool ayj_mall::reward_shops() {
-	if (_gstate2.last_shops_rewarded_at.sec_since_epoch() % seconds_per_day == current_time_point().sec_since_epoch() % seconds_per_day )
-		return true; //shops already rewarded
+	if ( is_today(_gstate2.last_shops_rewarded_at) ) return true;
 
 	shop_t::tbl_t shops(_self, _self.value);
 	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
@@ -419,7 +424,7 @@ bool ayj_mall::reward_shops() {
 }
 
 bool ayj_mall::reward_certified() {
-	if (_gstate2.last_certification_rewarded_at.sec_since_epoch() % seconds_per_day == current_time_point().sec_since_epoch() % seconds_per_day) return true;
+	if ( is_today(_gstate2.last_certification_rewarded_at) ) return true;
 
 	auto quant = _gstate.platform_share_cache.certified_user_share / _gstate.platform_share_cache.certified_user_count;
 	certification_t::tbl_t certifications(_self, _self.value);
@@ -443,7 +448,7 @@ bool ayj_mall::reward_certified() {
 }
 
 bool ayj_mall::reward_platform_top() {
-	CHECK( _gstate2.last_platform_reward_finished_at.sec_since_epoch() % seconds_per_day != current_time_point().sec_since_epoch() % seconds_per_day, "platform top users already rewarded" )
+	if ( is_today(_gstate2.last_platform_reward_finished_at) ) return true;
 
 	user_t::tbl_t users(_self, _self.value);
 	auto user_idx = users.get_index<"totalrewards"_n>();

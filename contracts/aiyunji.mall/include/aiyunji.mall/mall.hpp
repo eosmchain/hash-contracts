@@ -106,6 +106,8 @@ namespace ayj {
          inline void update_share_cache(user_t& user);
          inline void update_share_cache(shop_t& shop);
          inline void update_share_cache(spending_t& spend);
+
+         inline bool is_today(const time_point_sec& time);
    };
 
 }
