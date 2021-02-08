@@ -81,14 +81,14 @@ struct [[eosio::table("global2"), eosio::contract("aiyunji.mall")]] global2_t {
     uint64_t last_reward_shop_id                = 0;
     uint64_t last_sunshine_reward_spending_id   = 0;
     uint64_t last_platform_top_reward_step      = 0;
-    time_point_sec last_shop_reward_finished_at;
-    time_point_sec last_certified_reward_finished_at;
+    time_point_sec last_shops_rewarded_at;
+    time_point_sec last_certification_rewarded_at;
     time_point_sec last_platform_reward_finished_at;
 
     global2_t() {}
 
     EOSLIB_SERIALIZE(global2_t, (last_reward_shop_id)(last_sunshine_reward_spending_id)(last_platform_top_reward_step)
-                                (last_shop_reward_finished_at)(last_certified_reward_finished_at)(last_platform_reward_finished_at) )
+                                (last_shops_rewarded_at)(last_certification_rewarded_at)(last_platform_reward_finished_at) )
                                 
 };
 typedef eosio::singleton< "global2"_n, global2_t > global2_singleton;

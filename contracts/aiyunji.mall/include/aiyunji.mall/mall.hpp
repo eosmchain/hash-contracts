@@ -100,9 +100,12 @@ namespace ayj {
          inline bool reward_shop(const uint64_t& shop_id);
          inline bool reward_certified();
          inline bool reward_platform_top();
-         inline void update_platform_share_cache();
-         inline void update_user_share_cache(user_t& user);
-         inline void update_shop_share_cache(shop_t& shop);
+
+         inline bool update_all_caches();
+         inline void update_share_cache();
+         inline void update_share_cache(user_t& user);
+         inline void update_share_cache(shop_t& shop);
+         inline void update_share_cache(spending_t& spend);
    };
 
 }

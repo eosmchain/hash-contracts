@@ -257,7 +257,7 @@ bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 }
 
 bool ayj_mall::reward_shops() {
-	if (_gstate2.last_shop_reward_finished_at.sec_since_epoch() % seconds_per_day == current_time_point().sec_since_epoch() % seconds_per_day )
+	if (_gstate2.last_shops_rewarded_at.sec_since_epoch() % seconds_per_day == current_time_point().sec_since_epoch() % seconds_per_day )
 		return true; //shops already rewarded
 
 	shop_t::tbl_t shops(_self, _self.value);
@@ -273,7 +273,7 @@ bool ayj_mall::reward_shops() {
 
 	if (itr == shops.end()) {
 		_gstate2.last_reward_shop_id = 0;
-		_gstate2.last_shop_reward_finished_at = time_point_sec( current_time_point() );
+		_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
 		return true;
 	}
 
@@ -281,7 +281,7 @@ bool ayj_mall::reward_shops() {
 }
 
 bool ayj_mall::reward_certified() {
-	CHECK( _gstate2.last_certified_reward_finished_at.sec_since_epoch() % seconds_per_day != current_time_point().sec_since_epoch() % seconds_per_day, "certified users already rewarded" )
+	CHECK( _gstate2.last_certification_rewarded_at.sec_since_epoch() % seconds_per_day != current_time_point().sec_since_epoch() % seconds_per_day, "certified users already rewarded" )
 
 	bool finished = false;
 	auto quant = _gstate.certified_user_share / _gstate.certified_user_count;
@@ -296,7 +296,7 @@ bool ayj_mall::reward_certified() {
 
 	if (itr == new_users.end()) {
 		_gstate.certified_user_count = 0;
-		_gstate2.last_certified_reward_finished_at = time_point_sec( current_time_point() );
+		_gstate2.last_certification_rewarded_at = time_point_sec( current_time_point() );
 		finished = true;
 	}
 
