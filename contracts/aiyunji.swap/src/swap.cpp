@@ -1,245 +1,132 @@
-#include <aiyunji.swap/swap.hpp>
-#include <eosio.token/eosio.token.hpp>
-#include <math.hpp>
-#include <utils.hpp>
+#include "aiyunji.swap/swap.hpp"
+#include "utils.hpp"
+#include "math.hpp"
 
 namespace ayj {
 
-using namespace std;
-using namespace eosio;
 using namespace wasm::safemath;
 
-/************************ Help functions ****************************/
+void ayj_swap::open( const name& owner, const symbol& symbol, const name& ram_payer )
+{
+   require_auth( ram_payer );
 
-<<<<<<< Updated upstream
-void ayj_swap::_swap(const symbol_code& market_symb, const symbol_code &base_symb, const asset &quant_in, const asset &quant_out, const name &to) {
-=======
-    market_t market(market_sym, base_sym);
-    check( _dbc.get(market), "market not exist:" + market_sym.to_string() + "-" + base_sym.to_string() );
-    check( !market.closed, "market already closed: " + market_sym.to_string() + "-" + base_sym.to_string() );
+   check( is_account( owner ), "owner account does not exist" );
 
-    mint_action_t mint_action(to.value, nonce);
-    if (step == UNISWAP_MINT_STEP1) {
-        check( quant.symbol == market.reserve0.symbol, "step1: bank0 symbol and reserve0 symbol mismatch" );
-        check( get_first_receiver() == market.bank0, "step1: bank and bank0 mismatch" );
-        check( !_dbc.get(mint_action), "mint action step1 already exist: " );
+   auto sym_code_raw = symbol.code().raw();
+   currency_stats::tbl_t statstable( get_self(), sym_code_raw );
+   const auto& st = statstable.get( sym_code_raw, "symbol does not exist" );
+   check( st.supply.symbol == symbol, "symbol precision mismatch" );
 
-        mint_action.nonce       = nonce;
-        mint_action.market_sym = market_sym;
-        mint_action.base_sym = base_sym;
-        mint_action.bank0       = get_first_receiver();
-        mint_action.amount0_in  = quant;
-        mint_action.closed      = false;
-        mint_action.created_at  = time_point_sec( current_time_point() );
-
-        _dbc.set(mint_action);
-
-    } else if (step == UNISWAP_MINT_STEP2) {
-        check( _dbc.get(mint_action), "step2 mint action not exist" );
-        check( mint_action.market_sym == market_sym && mint_action.base_sym == base_sym,
-                "symbol_pair of mint action mismatches from param: " );
-        // check(mint_action.create_time == time_point_sec(current_time_point()), "2
-        // steps must be in one tx");
-        check( !mint_action.closed, "mint action already closed" );
-        check( get_first_receiver() == market.bank1, "step2 bank and bank1 mismatch" );
-        check( quant.symbol == market.reserve1.symbol, "step2 bank1 symbol and reserve1 symbol mismatch" );
-
-        mint_action.bank1      = get_first_receiver();
-        mint_action.amount1_in = quant;
-        mint_action.closed     = true;
-
-        _dbc.set(mint_action);
-
-        int64_t liquidity;
-        symbol liquidity_symbol = market.total_liquidity.symbol;
-        if (market.total_liquidity.amount == 0) {
-            liquidity = sqrt(mul(mint_action.amount0_in.amount,
-                                              mint_action.amount1_in.amount)) -
-                        MINIMUM_LIQUIDITY * PRECISION_1;
-
-            ISSUE( _gstate.liquidity_bank, _self, asset(MINIMUM_LIQUIDITY * PRECISION_1, liquidity_symbol), "" )
-
-            market.total_liquidity =
-                asset(MINIMUM_LIQUIDITY * PRECISION_1, liquidity_symbol);
-
-        } else {
-            liquidity = min(div(mul(mint_action.amount0_in.amount,
-                                                            market.total_liquidity.amount),
-                                           market.reserve0.amount),
-                            div(mul(mint_action.amount1_in.amount,
-                                                            market.total_liquidity.amount),
-                                           market.reserve1.amount));
-        }
-
-        check( liquidity > 0, "zero or negative liquidity minted" );
-
-        market.total_liquidity      += asset(liquidity, liquidity_symbol);
-        market.reserve0             = market.reserve0 + mint_action.amount0_in;
-        market.reserve1             = market.reserve1 + mint_action.amount1_in;
-        market.last_updated_at      = time_point_sec( current_time_point() );
-
-        _dbc.set(market);
-
-        ISSUE( _gstate.liquidity_bank, to, asset(liquidity, liquidity_symbol), "" )
-    }
-
+   account::tbl_t acnts( get_self(), owner.value );
+   auto it = acnts.find( sym_code_raw );
+   if( it == acnts.end() ) {
+      acnts.emplace( ram_payer, [&]( auto& a ){
+        a.balance = asset{0, symbol};
+      });
+   }
 }
 
-void ayj_swap::_burn(const symbol_code& market_sym, const symbol_code &base_sym, const asset &liquidity, const name &to) {
-    // require_auth( to );
-    market_t market(market_sym, base_sym);
-    check( _dbc.get(market), "market does not exist" );
-    check( !market.closed, "market already closed" );
-    check( liquidity.symbol.raw() == market.total_liquidity.symbol.raw(), "liquidity symbol and market lptoken symbol mismatch" );
-    check( get_first_receiver() == _gstate.liquidity_bank, "liquidity bank and lptoken bank mismatch" );
-
-    asset balance0 = market.reserve0;
-    asset balance1 = market.reserve1;
-
-    asset amount0 = asset( div( mul(balance0.amount,
-                                   div( mul(liquidity.amount, PRECISION_1),
-                                        market.total_liquidity.amount)),
-                            PRECISION_1), balance0.symbol);
-    asset amount1 = asset( div( mul(balance1.amount,
-                                   div(mul(liquidity.amount, PRECISION_1),
-                                        market.total_liquidity.amount)),
-                            PRECISION_1), balance1.symbol);
-
-    BURN( _gstate.liquidity_bank, _self, liquidity, "" )
-
-    TRANSFER( market.bank0, to, amount0, "" )
-    TRANSFER( market.bank1, to, amount1, "" )
-
-    market.total_liquidity      -= liquidity;
-    market.reserve0             = balance0 - amount0;
-    market.reserve1             = balance1 - amount1;
-    market.last_updated_at      = current_time_point();
-
-    _dbc.set(market);
+void ayj_swap::close( const name& owner, const symbol& symbol )
+{
+   require_auth( owner );
+   account::tbl_t acnts( get_self(), owner.value );
+   auto it = acnts.find( symbol.code().raw() );
+   check( it != acnts.end(), "Balance row already deleted or never existed. Action won't have any effect." );
+   check( it->balance.amount == 0, "Cannot close because the balance is not zero." );
+   acnts.erase( it );
 }
 
-void ayj_swap::_swap(const symbol_code& market_sym, const symbol_code &base_sym, const asset &quant_in, const asset &quant_out, const name &to) {
->>>>>>> Stashed changes
-    check( quant_in.amount > 0, "input amount must be > 0");
+void ayj_swap::transfer( const name& from, const name& to, const asset& quantity, const string& memo) {
+    check( from != to, "cannot transfer to self" );
+    require_auth( from );
+    check( is_account( to ), "to account does not exist");
+    auto sym = quantity.symbol.code();
+    currency_stats::tbl_t statstable( get_self(), sym.raw() );
+    const auto& st = statstable.get( sym.raw() );
 
-    swap_pair_t pair(market_symb, base_symb);
-    check( _dbc.get(pair), "pair does not exist" );
-    check( !pair.closed, "pair has been closed" );
+    require_recipient( from );
+    require_recipient( to );
+    if (st.fee_contract) require_recipient( st.fee_contract ); // line added to code from eosio.token
 
-    uint64_t swap_fee_ratio = _gstate.swap_fee_ratio;
+    check( quantity.is_valid(), "invalid quantity" );
+    check( quantity.amount > 0, "must transfer positive quantity" );
+    check( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+    check( memo.size() <= 256, "memo has more than 256 bytes" );
 
-    asset amount0_out, amount1_out;
-    asset amount0_in, amount1_in;
-    asset fee0, fee1;
+    auto payer = has_auth( to ) ? to : from;
 
-    if (quant_in.symbol == pair.market_reserve.symbol) {
-        check( quant_out.symbol == pair.base_reserve.symbol, "quant_out mismatch with base reserve's" );
-
-        amount0_in  = quant_in;
-        amount1_out = quant_out;
-        amount0_out = asset(0, pair.market_reserve.symbol);
-        amount1_in  = asset(0, pair.base_reserve.symbol);
-
-        if (swap_fee_ratio) {
-            fee0 = asset( mul(mul(amount0_in.amount, swap_fee_ratio), RATIO_BOOST), amount0_in.symbol );
-        }
-
-    } else if (quant_in.symbol == pair.base_reserve.symbol) {
-        check( quant_out.symbol == pair.market_reserve.symbol, "quant_out mismatches with market reserve's" );
-
-        amount0_out = quant_out;
-        amount1_in  = quant_in;
-        amount0_in  = asset(0, pair.market_reserve.symbol);
-        amount1_out = asset(0, pair.base_reserve.symbol);
-
-        if (swap_fee_ratio) {
-            auto amt = mul(mul(amount1_in.amount, swap_fee_ratio), RATIO_BOOST);
-            fee1 = asset( amt, amount1_in.symbol );
-        }
-    }
-
-    check( amount0_out.amount > 0 || amount1_out.amount > 0, "insufficient output amount");
-    check( amount0_out < pair.market_reserve || amount1_out < pair.base_reserve, "insufficient liquidity");
-
-    asset balance0, balance1;
-    {
-        // check( pair.market_reserve.bank0 != to && market.bank1 != to, "invalid to" );
-
-        if (amount0_out.amount > 0)
-<<<<<<< Updated upstream
-            TRANSFER( _gstate.swap_pair_bank, to, amount0_out, "" )
-
-        if (amount1_out.amount > 0)
-            TRANSFER( _gstate.swap_pair_bank, to, amount1_out, "" )
-=======
-            TRANSFER( market.bank0, to, amount0_out, "" )
-
-        if (amount1_out.amount > 0)
-            TRANSFER( market.bank1, to, amount1_out, "" )
->>>>>>> Stashed changes
-
-        balance0 = pair.market_reserve + amount0_in - amount0_out;
-        balance1 = pair.base_reserve + amount1_in - amount1_out;
-    }
-
-    {
-        asset balance0_adjusted = balance0 * 1000 - amount0_in * 3;
-        asset balance1_adjusted = balance1 * 1000 - amount1_in * 3;
-
-        auto index0 = mul( balance0_adjusted.amount, balance1_adjusted.amount );
-        auto index1 = mul( pair.market_reserve.amount, pair.base_reserve.amount ) * 1000 * 1000;
-
-        check( index0 >= index1, "invalid amount in balance0_adjusted balance1_adjusted index0 < index1" );
-    }
-
-    // process fee
-    if (fee0.amount > 0 || fee1.amount > 0) {
-        check( is_account(_gstate.swap_fee_receiver), "swap_fee_receiver account not set" );
-
-        if (fee0.amount > 0) {
-<<<<<<< Updated upstream
-            TRANSFER( market.bank0, _gstate.swap_fee_receiver, fee0, "" )
-=======
-            TRANSFER( market.bank0, _gstate.owner, fee0, "" )
->>>>>>> Stashed changes
-
-            balance0 -= fee0;
-        }
-        if (fee1.amount > 0) {
-<<<<<<< Updated upstream
-            TRANSFER( market.bank1, _gstate.swap_fee_receiver, fee1, "" )
-=======
-            TRANSFER( market.bank1, _gstate.owner, fee1, "" )
->>>>>>> Stashed changes
-
-            balance1 -= fee1;
-        }
-
-    }
-
-    pair.market_reserve     = balance0;
-    pair.base_reserve       = balance1;
-    pair.updated_at         = time_point_sec( current_time_point() );
-
-    _dbc.set( pair );
-
+    sub_balance( from, quantity );
+    add_balance( to, quantity, payer );
+    if (to == get_self()) ontransfer(from, to, quantity, memo); // line added to code from eosio.token
 }
 
+void ayj_swap::add_balance( const name& owner, const asset& value, const name& ram_payer )
+{
+    account::tbl_t to_acnts( get_self(), owner.value );
+    auto to = to_acnts.find( value.symbol.code().raw() );
+    if( to == to_acnts.end() ) {
+        to_acnts.emplace( ram_payer, [&]( auto& a ){
+        a.balance = value;
+        });
+    } else {
+        to_acnts.modify( to, same_payer, [&]( auto& a ) {
+        a.balance += value;
+        });
+    }
+}
 
-void ayj_swap::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
+void ayj_swap::sub_balance( const name& owner, const asset& value ) {
+    account::tbl_t from_acnts( get_self(), owner.value );
+
+    const auto& from = from_acnts.get( value.symbol.code().raw(), "no balance object found" );
+    check( from.balance.amount >= value.amount, "overdrawn balance" );
+
+    from_acnts.modify( from, owner, [&]( auto& a ) {
+            a.balance -= value;
+        });
+}
+
+void ayj_swap::openext( const name& user, const name& payer, const extended_symbol& ext_symbol) {
+    check( is_account( user ), "user account does not exist" );
+    require_auth( payer );
+    evodexaccount::tbl_t acnts( get_self(), user.value );
+    auto index = acnts.get_index<"extended"_n>();
+    const auto& acnt_balance = index.find( 
+      make128key(ext_symbol.get_contract().value, ext_symbol.get_symbol().raw()) );
+    if( acnt_balance == index.end() ) {
+        acnts.emplace( payer, [&]( auto& a ){
+            a.balance = extended_asset{0, ext_symbol};
+            a.id = acnts.available_primary_key();
+        });
+    }
+}
+
+void ayj_swap::closeext( const name& user, const name& to, const extended_symbol& ext_symbol, string memo) {
+    require_auth( user );
+    evodexaccount::tbl_t acnts( get_self(), user.value );
+    auto index = acnts.get_index<"extended"_n>();
+    const auto& acnt_balance = index.find( make128key(ext_symbol.get_contract().value, ext_symbol.get_symbol().raw()) );
+    check( acnt_balance != index.end(), "User does not have such token" );
+    auto ext_balance = acnt_balance->balance;
+    if (ext_balance.quantity.amount > 0) {
+        action(permission_level{ get_self(), "active"_n }, ext_balance.contract, "transfer"_n,
+          std::make_tuple( get_self(), to, ext_balance.quantity, memo) ).send();
+    }
+    index.erase( acnt_balance );
+}
+
+void ayj_swap::ontransfer(name from, name to, asset quantity, string memo) {
     constexpr string_view DEPOSIT_TO = "deposit to:";
     constexpr string_view EXCHANGE   = "exchange:";
 
-    if (from == _self) return;
+    if (from == get_self()) return;
+    check(to == get_self(), "This transfer is not for ayj_swap");
+    check(quantity.amount >= 0, "quantity must be positive");
 
-    check( to == _self, "This transfer is not for swap contract itself");
-    check( quantity.amount > 0, "quantity must be positive");
-
-    auto incoming = extended_asset{ quantity, get_first_receiver()};
+    auto incoming = extended_asset{quantity, get_first_receiver()};
     string_view memosv(memo);
     if ( starts_with(memosv, EXCHANGE) ) {
-        memoexchange(from, incoming, memosv.substr(EXCHANGE.size()) );
-
+      memoexchange(from, incoming, memosv.substr(EXCHANGE.size()) );
     } else {
       if ( starts_with(memosv, DEPOSIT_TO) ) {
           from = name(trim(memosv.substr(DEPOSIT_TO.size())));
@@ -249,341 +136,219 @@ void ayj_swap::ontransfer(const name& from, const name& to, const asset& quantit
     }
 }
 
-/** 
- *  LP transfers assets into this contract to add liquidity for token A & B in multiple actions
- */
-// [[eosio::on_notify("*::transfer")]]
-void ayj_swap::deposit(const name& from, const name& to, const asset& quant, const string& memo) {
-    if (to != _self)  return;
-
-    std::vector<string> memo_arr = string_split(memo, ':');
-    auto memo_arr_size = memo_arr.size();
-    check( memo_arr_size > 1, "params size must > 1 in transfer memo: " + to_string(memo_arr_size) );
-
-    auto action          = name( memo_arr[0] ).value;
-    auto market_symb     = symbol_code( memo_arr[1] );
-    auto base_symb       = symbol_code( memo_arr[2] );
-
-    switch (action) {
-    //by liquidity providers, must be done in two actions for transferring both market and base tokens
-    case N(enliq): {// "enliq:$symb0:$symb1:$step:$sn" E.g. "enliq:BTC:ETH:1:0001"
-        check( memo_arr_size == 5, "enliq params size must be 5 in transfer memo" + to_string(memo_arr_size));
-        auto step = atoi(memo_arr[3].data());
-        auto sn = atoi(memo_arr43].data());
-        _enliq( market_symb, base_symb, step, from, quant, sn);
-        return;
-    }
-    //by liquidity providers
-    case N(deliq): {// "deliq:BTC:ETH"
-        check( memo_arr_size == 3, "deliq params size must be 3 in transfer memo" + to_string(memo_arr_size) );
-        _deliq( market_symb, base_symb, quant, from);
-        return;
-    }
-<<<<<<< Updated upstream
-    //by normal swap traders
-    case N(swap): {// "swap:BTC:ETH:$quant_out:$to"
-        check( memo_arr_size == 5, "burn params size must be 5 in transfer memo", memo_arr_size );
-        asset quant_out = asset_from_string(memo_arr[3]);
-        _swap( market_symb, base_symb, quant, quant_out, name(memo_arr[3]));
-=======
-    case N(swap): { // swap:BTC-ETH:quant_out:to
-        check( memo_size == 4, "burn params size % must == 4 in transfer memo", memo_size );
-        asset quant_out = asset_from_string(transfer_memo[2]);
-        _swap(market_sym, base_sym, quant, quant_out, name(transfer_memo[3]));
->>>>>>> Stashed changes
-        return;
-    }
-    default: {
-        check(false, "unsuppport transfer action in memo: " + memo_arr[0]);
-        return;
-    }
-    }
-
+void ayj_swap::withdraw(name user, name to, extended_asset to_withdraw, string memo){
+    require_auth( user );
+    check(to_withdraw.quantity.amount > 0, "quantity must be positive");
+    add_signed_ext_balance(user, -to_withdraw);
+    action(permission_level{ get_self(), "active"_n }, to_withdraw.contract, "transfer"_n,
+      std::make_tuple( get_self(), to, to_withdraw.quantity, memo) ).send();
 }
 
-/************************ ACTION functions ****************************/
-ACTION ayj_swap::init() {
-    require_auth( _self );
-
-    _gstate.swap_token_bank     = SYS_BANK;
-    _gstate.lp_token_bank       = SYS_BANK;
-    _gstate.admin               = "mwalletadmin"_n;
-    _gstate.fee_receiver        = "mwalletadmin"_n; //TBD
-
-    // _gstate.liquidity_bank  = liquidity_bank;
-    // _gstate.operator        = operator;
-    // _gstate.swap_fee_ratio  = swap_fee_ratio;
-
-}
-
-//LP user to open new asset type for his/her account pool
-ACTION ayj_swap::openasset( const name& lp_user, const extended_symbol& ext_symbol) {
-    require_auth( lp_user );
-    
-    check( is_account( lp_user ), "user account does not exist" );
-
-    asset_t assets( _self, lp_user.value );
-
-    auto asset_idx = assets.get_index<"assetsymb"_n>();
-    auto asset_key = make128key( ext_symbol.get_contract().value, ext_symbol.get_symbol().raw());
-    const auto& asset_itr = asset_idx.find( asset_key );
-    check( asset_itr == asset_idx.end(), "asset already opened for " + lp_user.to_string() );
-
-    assets.emplace( _self, [&]( auto& a ){
-        a.id = assets.available_primary_key();
-        a.balance = extended_asset{ 0, ext_symbol};
-    });
-}
-
-ACTION ayj_swap::closeasset( const name& lp_user, const name& to, const extended_symbol& ext_symbol, const string& memo) {
-    require_auth( lp_user );
-
-    asset_t assets( _self, lp_user.value );
-    auto asset_idx = assets.get_index<"assetsymb"_n>();
-    auto asset_key = make128key( ext_symbol.get_contract().value, ext_symbol.get_symbol().raw());
-    const auto& asset_itr = asset_idx.find( asset_key );
-    check( asset_itr != asset_idx.end(), "LP user does not have such token" );
-
-    auto ext_balance = asset_itr->balance;
-    if (ext_balance.quantity.amount > 0) {
-        TRANSFER( ext_balance.contract, to, ext_balance.quantity, memo )
-    }
-    asset_idx.erase( asset_itr );
-}
-
-ACTION ayj_swap::createpair(const symbol& market_symb, const symbol& base_symb, const symbol& lpt_symb) {
-    require_auth( _gstate.admin );
-
-    check( _gstate.base_symbols.contain(base_symb.code().to_string()), "base_symb not registered: " + base_symb.code().to_string() );
-
-    swap_pair_t pair( market_symb, base_symb, lpt_symb);
-    check( !_dbc.get( pair ), "pair already exists" );
-
-    if ( _gstate.base_symbols.contain(market_symb.code().to_string())) {
-        swap_pair_t rev_pair(base_symb, market_symb);
-        check( !_dbc.get( rev_pair ), "reverse pair already exists" );
-    }
-
-    pair.created_at   = time_point_sec( current_time_point() );
-    pair.closed       = false;
-
-    _dbc.set( pair );
-
-}
-
-ACTION ayj_swap::closepair(const symbol_code& market_symb, const symbol_code& base_symb, const bool closed) {
-    require_auth( _self );
-
-    swap_pair_t pair(market_sym, base_sym);
-    check( _dbc.get(pair), "swap pair not exist: " + pair.to_string() );
-    pair.closed = closed;
-
-    _dbc.set( pair );
-}
-
-ACTION ayj_swap::addliquidity(const name& user, const asset& to_buy, asset max_asset1, asset max_asset2) {
+void ayj_swap::addliquidity(name user, asset to_buy, asset max_asset1, asset max_asset2) {
     require_auth(user);
     check( (to_buy.amount > 0), "to_buy amount must be positive");
     check( (max_asset1.amount >= 0) && (max_asset2.amount >= 0), "assets must be nonnegative");
-    
     add_signed_liq(user, to_buy, true, max_asset1, max_asset2);
 }
 
-ACTION ayj_swap::addliquidity(const symbol_code& market_symb, const symbol_code &base_symb, uint64_t step, const name &to, const asset &quant, uint64_t nonce) {
+void ayj_swap::remliquidity(name user, asset to_sell, asset min_asset1, asset min_asset2) {
+    require_auth(user);
+    check(to_sell.amount > 0, "to_sell amount must be positive");
+    check( (min_asset1.amount >= 0) && (min_asset2.amount >= 0), "assets must be nonnegative");
+    add_signed_liq(user, -to_sell, false, -min_asset1, -min_asset2);
+}
 
-    swap_pair_t pair(market_symb, base_symb);
-    check( _dbc.get(pair), "pair not exist:" + pair.to_string() );
-    check( !pair.closed, "pair already closed: " + pair.to_string() );
-
-    mint_action_t mint_action(to.value, nonce);
-    if (step == UNISWAP_MINT_STEP1) {
-        check( quant.symbol == pair.reserve0.symbol, "step1: bank0 symbol and reserve0 symbol mismatch" );
-        check( get_first_receiver() == pair.bank0, "step1: bank and bank0 mismatch" );
-        check( !_dbc.get(mint_action), "mint action step1 already exist: " );
-
-        mint_action.nonce       = nonce;
-        mint_action.market_sym  = market_sym;
-        mint_action.base_sym    = base_sym;
-        mint_action.bank0       = get_first_receiver();
-        mint_action.amount0_in  = quant;
-        mint_action.closed      = false;
-        mint_action.created_at  = time_point_sec( current_time_point() );
-
-        _dbc.set(mint_action);
-
-    } else if (step == UNISWAP_MINT_STEP2) {
-        check( _dbc.get(mint_action), "step2 mint action not exist" );
-        check( mint_action.market_sym == market_sym && mint_action.base_sym == base_sym, 
-                "symbol_pair of mint action mismatches from param: " );
-        // check(mint_action.create_time == time_point_sec(current_time_point()), "2
-        // steps must be in one tx");
-        check( !mint_action.closed, "mint action already closed" );
-        check( get_first_receiver() == pair.bank1, "step2 bank and bank1 mismatch" );
-        check( quant.symbol == pair.reserve1.symbol, "step2 bank1 symbol and reserve1 symbol mismatch" );
-
-        mint_action.bank1      = get_first_receiver();
-        mint_action.amount1_in = quant;
-        mint_action.closed     = true;
-
-        _dbc.set(mint_action);
-
-        int64_t liquidity;
-        symbol liquidity_symbol = market.total_liquidity.symbol;
-        if (pair.total_liquidity.amount == 0) {
-            liquidity = sqrt(mul(mint_action.amount0_in.amount,
-                                              mint_action.amount1_in.amount)) -
-                        MINIMUM_LIQUIDITY * PRECISION_1;
-
-            ISSUE( _gstate.liquidity_bank, _self, asset(MINIMUM_LIQUIDITY * PRECISION_1, liquidity_symbol), "" )
-
-            market.total_liquidity =
-                asset(MINIMUM_LIQUIDITY * PRECISION_1, liquidity_symbol);
-
-        } else {
-            liquidity = min(div(mul(mint_action.amount0_in.amount,
-                                                            market.total_liquidity.amount),
-                                           market.reserve0.amount),
-                            div(mul(mint_action.amount1_in.amount,
-                                                            market.total_liquidity.amount),
-                                           market.reserve1.amount));
-        }
-
-        check( liquidity > 0, "zero or negative liquidity minted" );
-
-        market.total_liquidity      += asset(liquidity, liquidity_symbol);
-        market.reserve0             = market.reserve0 + mint_action.amount0_in;
-        market.reserve1             = market.reserve1 + mint_action.amount1_in;
-        market.last_updated_at      = time_point_sec( current_time_point() );
-
-        _dbc.set(market);
-
-        ISSUE( _gstate.liquidity_bank, to, asset(liquidity, liquidity_symbol), "" )
+// computes x * y / z plus the fee
+int64_t ayj_swap::compute(int64_t x, int64_t y, int64_t z, int fee) {
+    check( (x != 0) && (y > 0) && (z > 0), "invalid parameters");
+    int128_t prod = int128_t(x) * int128_t(y);
+    int128_t tmp = 0;
+    int128_t tmp_fee = 0;
+    if (x > 0) {
+        tmp = 1 + (prod - 1) / int128_t(z);
+        check( (tmp <= MAX), "computation overflow" );
+        tmp_fee = (tmp * fee + 9999) / 10000;
+    } else {
+        tmp = prod / int128_t(z);
+        check( (tmp >= -MAX), "computation underflow" );
+        tmp_fee =  (-tmp * fee + 9999) / 10000;
     }
-
+    tmp += tmp_fee;
+    return int64_t(tmp);
 }
 
-ACTION ayj_swap::remliquidity(const symbol_code& market_symb, const symbol_code &base_symb, const asset &lpt_quant, const name &to) {
-    // require_auth( to );
-    swap_pair_t pair(market_sym, base_symb);
-    check( _dbc.get(pair), "pair does not exist: " + pair.to_string() );
-    check( !pair.closed, "pair already closed" );
-    check( pair.lpt_reserve >= lpt_quant, "over burn lpt: " + ltp_quant.to_string() );
-    check( lpt_quant.symbol.raw() == pair.lpt_reserve.symbol.raw(), "liquidity symbol and pair lptoken symbol mismatch" );
-    check( get_first_receiver() == _gstate.lp_token_bank, "liquidity bank and lptoken bank mismatch" );
-    
-    asset balance0 = pair.market_reserve;
-    asset balance1 = pair.base_reserve;
+void ayj_swap::add_signed_liq(name user, asset to_add, bool is_buying, asset max_asset1, asset max_asset2){
+    check( to_add.is_valid(), "invalid asset");
+    currency_stats::tbl_t statstable( get_self(), to_add.symbol.code().raw() );
+    const auto& token = statstable.find( to_add.symbol.code().raw() );
+    check ( token != statstable.end(), "pair token does not exist" );
+    auto A = token-> supply.amount;
+    auto P1 = token-> pool1.quantity.amount;
+    auto P2 = token-> pool2.quantity.amount;
 
-    asset amount0 = asset( div( mul(balance0.amount,
-                                   div( mul(lpt_quant.amount, PRECISION_1),
-                                        pair.lpt_reserve.amount)),
-                            PRECISION_1), balance0.symbol);
+    int fee = is_buying? ADD_LIQUIDITY_FEE : 0;
+    auto to_pay1 = extended_asset{ asset{compute(to_add.amount, P1, A, fee),
+      token->pool1.quantity.symbol}, token->pool1.contract};
+    auto to_pay2 = extended_asset{ asset{compute(to_add.amount, P2, A, fee),
+      token->pool2.quantity.symbol}, token->pool2.contract};
+    check( (to_pay1.quantity.symbol == max_asset1.symbol) && 
+           (to_pay2.quantity.symbol == max_asset2.symbol), "incorrect symbol");
+    check( (to_pay1.quantity.amount <= max_asset1.amount) && 
+           (to_pay2.quantity.amount <= max_asset2.amount), "available is less than expected");
 
-    asset amount1 = asset( div( mul(balance1.amount,
-                                   div(mul(lpt_quant.amount, PRECISION_1),
-                                        pair.lpt_reserve.amount)),
-                            PRECISION_1), balance1.symbol);
-
-    BURN( _gstate.lp_token_bank, _self, lpt_quant, "" )
-
-    TRANSFER( _gstate.swap_token_bank, to, amount0, "" )
-    TRANSFER( _gstate.swap_token_bank, to, amount1, "" )
-
-    pair.lpt_reserve            -= lpt_quant;
-    pair.market_reserve          = balance0 - amount0;
-    pair.base_reserve            = balance1 - amount1;
-    pair.updated_at              = time_point_sec( current_time_point() );
-
-    _dbc.set( pair );
+    add_signed_ext_balance(user, -to_pay1);
+    add_signed_ext_balance(user, -to_pay2);
+    (to_add.amount > 0)? add_balance(user, to_add, user) : sub_balance(user, -to_add);
+    if (token->fee_contract) require_recipient(token->fee_contract);
+    statstable.modify( token, same_payer, [&]( auto& a ) {
+      a.supply += to_add;
+      a.pool1 += to_pay1;
+      a.pool2 += to_pay2;
+    });
+    check(token->supply.amount != 0, "the pool cannot be left empty");
 }
-/*
-ACTION ayj_swap::refund(const symbol_code& market_sym, const symbol_code &base_sym, const name& to, const uint64_t& nonce) {
 
-    swap_pair_t pair(market_sym, base_sym);
-    check( _dbc.get(market), "market not exist" );
-    check( !market.closed, "market already closed" );
+void ayj_swap::exchange( name user, symbol_code pair_token, extended_asset ext_asset_in, asset min_expected) {
+    require_auth(user);
+    check( ((ext_asset_in.quantity.amount > 0) && (min_expected.amount >= 0)) ||
+           ((ext_asset_in.quantity.amount < 0) && (min_expected.amount <= 0)), 
+           "ext_asset_in must be nonzero and min_expected must have same sign or be zero");
+    auto ext_asset_out = process_exch(pair_token, ext_asset_in, min_expected);
+    add_signed_ext_balance(user, -ext_asset_in);
+    add_signed_ext_balance(user, ext_asset_out);
+}
 
-    mint_action_t mint_action(to.value, nonce);
-    check( _dbc.get(mint_action), "the mint action not exist" );
-
-    require_auth( mint_action.owner );
-    check( mint_action.market_sym == market_sym && mint_action.base_sym == base_sym,
-            "symbol_pair of mint action mismatches with symbol_pair");
-
-    check( !mint_action.closed, "mint action already closed" );
-    check( mint_action.amount0_in.amount > 0 ||  mint_action.amount1_in.amount, "all asset is 0 in mint_action" );
-
-    check( to != _self, "_self is not to account: " + to.to_string() );
-
-    if (mint_action.amount0_in.amount > 0) {
-        TRANSFER( mint_action.bank0, to, mint_action.amount0_in, "" )
-        mint_action.amount0_in.amount = 0;
+extended_asset ayj_swap::process_exch(symbol_code pair_token, extended_asset ext_asset_in, asset min_expected){
+    currency_stats::tbl_t statstable( get_self(), pair_token.raw() );
+    const auto token = statstable.find( pair_token.raw() );
+    check ( token != statstable.end(), "pair token does not exist" );
+    bool in_first;
+    if ((token->pool1.get_extended_symbol() == ext_asset_in.get_extended_symbol()) && 
+        (token->pool2.quantity.symbol == min_expected.symbol)) {
+        in_first = true;
+    } else if ((token->pool1.quantity.symbol == min_expected.symbol) &&
+               (token->pool2.get_extended_symbol() == ext_asset_in.get_extended_symbol())) {
+        in_first = false;
     }
-
-    if (mint_action.amount1_in.amount > 0) {
-        TRANSFER( mint_action.bank1, to, mint_action.amount1_in, "" )
-        mint_action.amount1_in.amount = 1;
+    else check(false, "extended_symbol mismatch");
+    int64_t P_in, P_out;
+    if (in_first) { 
+      P_in = token-> pool1.quantity.amount;
+      P_out = token-> pool2.quantity.amount;
+    } else {
+      P_in = token-> pool2.quantity.amount;
+      P_out = token-> pool1.quantity.amount;
     }
-
-    mint_action.closed = true;
-    _dbc.set( mint_action );
-
-}
-<<<<<<< Updated upstream
-*/
-=======
-
-ACTION ayj_swap::close(const symbol_code& market_sym, const symbol_code& base_sym, const bool closed) {
-    require_auth( _self );
-
-    market_t market(market_sym, base_sym);
-    check( _dbc.get(market), "market not exist" + market.get_sympair() );
-    market.closed = closed;
-
-    _dbc.set( market );
-}
-
-ACTION ayj_swap::skim(const symbol_code& market_sym, const symbol_code& base_sym, const name& to, const asset& balance0, const asset& balance1) {
-    require_auth( _gstate.owner );
-
-    market_t market(market_sym, base_sym);
-    check( _dbc.get(market), "market not exist" );
-    check( market.closed, "market must be closed first" );
-    check( balance0.symbol == market.reserve0.symbol, "bank0 symbol mismatch" );
-    check( balance1.symbol == market.reserve1.symbol, "bank1 symbol mismatch" );
-    check( balance0 >  market.reserve0, "balance0 <= market reserve0" );
-    check( balance1 >  market.reserve1, "balance1 <= market reserve1" );
-
-    TRANSFER( market.bank0, to, balance0 - market.reserve0, "" )
-    TRANSFER( market.bank1, to, balance1 - market.reserve1, "" )
-
-    auto now                    = current_time_point();
-
-    market.last_updated_at      = now;
-    market.last_skimmed_at      = now;
-
-    _dbc.set(market);
-
+    auto A_in = ext_asset_in.quantity.amount;
+    int64_t A_out = compute(-A_in, P_out, P_in + A_in, token->fee);
+    check(min_expected.amount <= -A_out, "available is less than expected");
+    extended_asset ext_asset1, ext_asset2, ext_asset_out;
+    if (in_first) { 
+      ext_asset1 = ext_asset_in;
+      ext_asset2 = extended_asset{A_out, token-> pool2.get_extended_symbol()};
+      ext_asset_out = -ext_asset2;
+    } else {
+      ext_asset1 = extended_asset{A_out, token-> pool1.get_extended_symbol()};
+      ext_asset2 = ext_asset_in;
+      ext_asset_out = -ext_asset1;
+    }
+    statstable.modify( token, same_payer, [&]( auto& a ) {
+      a.pool1 += ext_asset1;
+      a.pool2 += ext_asset2;
+    });
+    return ext_asset_out;
 }
 
-ACTION ayj_swap::sync(const symbol_code& market_sym, const symbol_code& base_sym, const asset& balance0, const asset& balance1) {
-    require_auth( _gstate.owner );
+void ayj_swap::memoexchange(name user, extended_asset ext_asset_in, string_view details) {
+    auto parts = split(details, ",");
+    check(parts.size() >= 2, "Expected format 'EVOTOKEN,min_expected_asset,optional memo'");
 
-    market_t market(market_sym, base_sym);
-    check( _dbc.get(market), "market does not exist");
-    check( market.closed, "market must be closed first");
-    check( balance0.symbol == market.reserve0.symbol, "bank0 symbol mismatch" );
-    check( balance1.symbol == market.reserve1.symbol, "bank1 symbol mismatch" );
+    auto pair_token   = symbol_code(parts[0]);
+    auto min_expected = asset_from_string(parts[1]);
+    auto second_comma_pos = details.find(",", 1 + details.find(","));
+    auto memo = (second_comma_pos == string::npos)? "" : details.substr(1 + second_comma_pos);
 
-    auto now                    = current_time_point();
-
-    market.reserve0             = balance0;
-    market.reserve1             = balance1;
-    market.last_updated_at      = now;
-    market.last_synced_at       = now;
-
-    _dbc.set(market);
+    check(min_expected.amount >= 0, "min_expected must be expressed with a positive amount");
+    auto ext_asset_out = process_exch(pair_token, ext_asset_in, min_expected);
+    action(permission_level{ get_self(), "active"_n }, ext_asset_out.contract, "transfer"_n,
+      std::make_tuple( get_self(), user, ext_asset_out.quantity, std::string(memo)) ).send();
 }
->>>>>>> Stashed changes
 
-} //namespace ayj
+void ayj_swap::inittoken(name user, symbol new_symbol, extended_asset initial_pool1, extended_asset initial_pool2, int initial_fee, name fee_contract) {
+    require_auth( user );
+    require_auth( get_self() );
+    check((initial_pool1.quantity.amount > 0) && (initial_pool2.quantity.amount > 0), "Both assets must be positive");
+    check((initial_pool1.quantity.amount < INIT_MAX) && (initial_pool2.quantity.amount < INIT_MAX), "Initial amounts must be less than 10^15");
+    uint8_t new_precision = ( initial_pool1.quantity.symbol.precision() + initial_pool2.quantity.symbol.precision() ) / 2;
+    check( new_symbol.precision() == new_precision, "new_symbol precision must be (precision1 + precision2) / 2" );
+    int128_t geometric_mean = sqrt(int128_t(initial_pool1.quantity.amount) * int128_t(initial_pool2.quantity.amount));
+    auto new_token = asset{int64_t(geometric_mean), new_symbol};
+    check( initial_pool1.get_extended_symbol() != initial_pool2.get_extended_symbol(), "extended symbols must be different");
+
+    currency_stats::tbl_t statstable( get_self(), new_symbol.code().raw() );
+    const auto& token = statstable.find( new_symbol.code().raw() );
+    check ( token == statstable.end(), "token symbol already exists" );
+    check( initial_fee == DEFAULT_FEE, "initial_fee must be 10");
+    check( fee_contract == "wevotethefee"_n, "fee_contract must be wevotethefee");
+
+    statstable.emplace( user, [&]( auto& a ) {
+        a.supply = new_token;
+        a.max_supply = asset{MAX,new_symbol};
+        a.issuer = get_self();
+        a.pool1 = initial_pool1;
+        a.pool2 = initial_pool2;
+        a.fee = initial_fee;
+        a.fee_contract = fee_contract;
+    } );
+
+    placeindex(user, new_symbol, initial_pool1, initial_pool2 );
+    add_balance(user, new_token, user);
+    add_signed_ext_balance(user, -initial_pool1);
+    add_signed_ext_balance(user, -initial_pool2);
+}
+
+void ayj_swap::indexpair(name user, symbol evo_symbol) {
+    currency_stats::tbl_t statstable( get_self(), evo_symbol.code().raw() );
+    const auto& token = statstable.find( evo_symbol.code().raw() );
+    check ( token != statstable.end(), "token symbol does not exist" );
+    auto pool1 = token->pool1;
+    auto pool2 = token->pool2;
+    placeindex(user, evo_symbol, pool1, pool2);
+}
+
+void ayj_swap::placeindex(name user, symbol evo_symbol, extended_asset pool1, extended_asset pool2 ) {
+    auto id_256 = make256key(pool1.contract.value, pool1.quantity.symbol.raw(),
+                             pool2.contract.value, pool2.quantity.symbol.raw());
+    index_struct::tbl_t indextable( get_self(), get_self().value );
+    auto index = indextable.get_index<"extended"_n>();
+    const auto& info = index.find( id_256 );
+    check( info == index.end(), "the pool is already indexed");
+    indextable.emplace( user, [&]( auto& a ){
+        a.evo_symbol = evo_symbol;
+        a.id_256 = id_256;
+    });
+}
+
+void ayj_swap::changefee(symbol_code pair_token, int newfee) {
+    currency_stats::tbl_t statstable( get_self(), pair_token.raw() );
+    const auto& token = statstable.find( pair_token.raw() );
+    check ( token != statstable.end(), "pair token does not exist" );
+    require_auth(token->fee_contract);
+    statstable.modify( token, same_payer, [&]( auto& a ) {
+      a.fee = newfee;
+    } );
+}
+
+void ayj_swap::add_signed_ext_balance( const name& user, const extended_asset& to_add ) {
+    check( to_add.quantity.is_valid(), "invalid asset" );
+    evodexaccount::tbl_t acnts( get_self(), user.value );
+    auto index = acnts.get_index<"extended"_n>();
+    const auto& acnt_balance = index.find( make128key(to_add.contract.value, to_add.quantity.symbol.raw() ) );
+    check( acnt_balance != index.end(), "extended_symbol not registered for this user, please run openext action or write exchange details in the memo of your transfer");
+    index.modify( acnt_balance, same_payer, [&]( auto& a ) {
+        a.balance += to_add;
+        check( a.balance.quantity.amount >= 0, "insufficient funds");
+    });
+}
+
+}
