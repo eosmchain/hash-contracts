@@ -1,4 +1,4 @@
-add_contract(aiyunji.swap aiyunji.swap ${CMAKE_CURRENT_SOURCE_DIR}/src/swap.cpp)
+add_contract(aiyunji.swap aiyunji.swap ${CMAKE_CURRENT_SOURCE_DIR}/src/swap.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/swap_token.cpp)
 
 target_include_directories(aiyunji.swap
    PUBLIC
