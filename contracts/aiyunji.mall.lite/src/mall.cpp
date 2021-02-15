@@ -133,7 +133,7 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& the_user, const na
 
 }
          
-ACTION ayj_mall::registershop(const name& issuer, const name& referrer, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& shop_account) {
+ACTION ayj_mall::registershop(const name& issuer, const name& referrer, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& owner_account) {
 	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
 	require_auth( issuer );
 
@@ -142,7 +142,7 @@ ACTION ayj_mall::registershop(const name& issuer, const name& referrer, const ui
 		row.id 					= shops.available_primary_key();
 		row.citycenter_id		= citycenter_id;
 		row.parent_id 			= parent_shop_id;
-		row.shop_account 		= shop_account;
+		row.owner_account 		= owner_account;
 		row.referral_account	= referrer;
 	});
 

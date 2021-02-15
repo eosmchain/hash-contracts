@@ -82,7 +82,7 @@ inline void ayj_mall::credit_referrer(const asset& total_share, const user_t& us
 	auto share5 = total_share * _cstate.allocation_ratios[5] / ratio_boost; //direct-referral:	10%
 	auto share6 = total_share * _cstate.allocation_ratios[6] / ratio_boost;	//agent-referral:	5%
 
-	if (is_account( user.referral_account) && user.referral_account != shop.shop_account) {
+	if (is_account( user.referral_account) && user.referral_account != shop.owner_account) {
 		user_t ext_referrer(user.referral_account);
 		CHECK( _dbc.get(ext_referrer), "customer referrer not registered: " + user.referral_account.to_string() )
 		ext_referrer.share.customer_referral_reward += share5;
@@ -92,7 +92,7 @@ inline void ayj_mall::credit_referrer(const asset& total_share, const user_t& us
 
 		_gstate.platform_share.lucky_draw_share += share6;
 
-	} else if (user.referral_account == shop.shop_account) { //referred within the shop
+	} else if (user.referral_account == shop.owner_account) { //referred within the shop
 		user_t user_referrer(user.referral_account);
 		CHECK( _dbc.get(user_referrer), "customer referrer not registered: " + user.referral_account.to_string() )
 		user_referrer.share.customer_referral_reward += share5;
@@ -214,22 +214,22 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& the_user, const na
 
 }
          
-ACTION ayj_mall::registershop(const name& issuer, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& shop_account) {
-	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
+ACTION ayj_mall::registershop(const name& issuer, const name& owner, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& owner_account) {
+	CHECK( issuer == _cstate.platform_admin, "non-platform-admin err" )
 	require_auth( issuer );
 
-	user_t user(issuer);
+	user_t user(owner);
 	CHECK( _dbc.get(user), "user not found: " + issuer.to_string() )
 	auto shop_referrer = user.referral_account;
 	if (!shop_referrer)
-		shop_referrer = _gstate.platform_referrer;
+		shop_referrer = _cstate.platform_referrer;
 		
 	shop_t::tbl_t shops(_self, _self.value);
 	shops.emplace(_self, [&](auto& row) {
 		row.id 					= shops.available_primary_key();
 		row.citycenter_id		= citycenter_id;
 		row.parent_id 			= parent_shop_id;
-		row.shop_account 		= shop_account;
+		row.owner_account 		= owner;
 		row.referral_account	= shop_referrer;
 	});
 
@@ -255,7 +255,7 @@ ACTION ayj_mall::registercc(const name& issuer, const name& cc_name, const name&
 
 ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 	require_auth( issuer );
-	CHECK( issuer == _cstate.platform_admin, "issuer not platform admin: " )
+	CHECK( issuer == _cstate.platform_admin, "issuer (" + issuer.to_string() + ") not platform admin: " + _cstate.platform_admin.to_string() )
 	CHECK( is_account(user), "user account not valid" )
 
 	certification_t certuser(user);
