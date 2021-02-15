@@ -214,17 +214,23 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& the_user, const na
 
 }
          
-ACTION ayj_mall::registershop(const name& issuer, const name& referrer, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& shop_account) {
+ACTION ayj_mall::registershop(const name& issuer, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& shop_account) {
 	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
 	require_auth( issuer );
 
+	user_t user(issuer);
+	CHECK( _dbc.get(user), "user not found: " + issuer.to_string() )
+	auto shop_referrer = user.referral_account;
+	if (!shop_referrer)
+		shop_referrer = _gstate.platform_referrer;
+		
 	shop_t::tbl_t shops(_self, _self.value);
 	shops.emplace(_self, [&](auto& row) {
 		row.id 					= shops.available_primary_key();
 		row.citycenter_id		= citycenter_id;
 		row.parent_id 			= parent_shop_id;
 		row.shop_account 		= shop_account;
-		row.referral_account	= referrer;
+		row.referral_account	= shop_referrer;
 	});
 
 }

@@ -191,24 +191,6 @@ extended_asset ayj_swap::process_exch(symbol_code pair_token, extended_asset ext
     return ext_asset_out;
 }
 
-void ayj_swap::memoexchange(const name& user, const extended_asset& ext_asset_in, const string_view& details) {
-    auto parts = split(details, ",");
-    check(parts.size() >= 2, "Expected format: '$LPTOKEN,$min_expected_asset,optional memo'");
-
-    auto pair_token   = symbol_code(parts[0]);
-    auto min_expected = asset_from_string(parts[1]);
-    auto second_comma_pos = details.find(",", 1 + details.find(","));
-    auto memo = (second_comma_pos == string::npos)? "" : details.substr(1 + second_comma_pos);
-
-    check(min_expected.amount >= 0, "min_expected must be expressed with a positive amount");
-    auto ext_asset_out = process_exch(pair_token, ext_asset_in, min_expected);
-
-    TRANSFER( ext_asset_out.contract, user, ext_asset_out.quantity, std::string(memo) )
-
-    // action(permission_level{ get_self(), "active"_n }, ext_asset_out.contract, "transfer"_n,
-    //   std::make_tuple( get_self(), user, ext_asset_out.quantity, std::string(memo)) ).send();
-}
-
 //add both liqudity for the 1st time and get lp tokens (new_symbol)
 ACTION ayj_swap::initpair(const name& user, const symbol& new_symbol, 
                           const extended_asset& initial_pool1, const extended_asset& initial_pool2, 
@@ -239,7 +221,7 @@ ACTION ayj_swap::initpair(const name& user, const symbol& new_symbol,
         a.fee_contract  = fee_contract;
     } );
 
-    place_index(user, new_symbol, initial_pool1, initial_pool2);
+    add_pair_index(user, new_symbol, initial_pool1, initial_pool2);
     add_balance(user, new_token, user);
     add_lp_balance(user, -initial_pool1);
     add_lp_balance(user, -initial_pool2);
@@ -251,7 +233,7 @@ ACTION ayj_swap::indexpair(const name& user, const symbol& lp_symbol) {
     check ( token != statstable.end(), "token symbol does not exist" );
     auto pool1 = token->pool1;
     auto pool2 = token->pool2;
-    place_index(user, lp_symbol, pool1, pool2);
+    add_pair_index(user, lp_symbol, pool1, pool2);
 }
 
 ACTION ayj_swap::changefee(const symbol_code& pair_token, const int newfee) {
@@ -265,8 +247,24 @@ ACTION ayj_swap::changefee(const symbol_code& pair_token, const int newfee) {
 }
 
 
-void ayj_swap::place_index(const name& user, const symbol& lp_symbol, 
-                          const extended_asset& pool1, const extended_asset& pool2 ) {
+
+void ayj_swap::memoexchange(const name& user, const extended_asset& ext_asset_in, const string_view& details) {
+    auto parts = split(details, ",");
+    check(parts.size() >= 2, "Expected format: '$LPTOKEN,$min_expected_asset,optional memo'");
+
+    auto pair_token   = symbol_code(parts[0]);
+    auto min_expected = asset_from_string(parts[1]);
+    auto second_comma_pos = details.find(",", 1 + details.find(","));
+    auto memo = (second_comma_pos == string::npos)? "" : details.substr(1 + second_comma_pos);
+
+    check(min_expected.amount >= 0, "min_expected must be expressed with a positive amount");
+    auto ext_asset_out = process_exch(pair_token, ext_asset_in, min_expected);
+
+    TRANSFER( ext_asset_out.contract, user, ext_asset_out.quantity, std::string(memo) )
+}
+
+void ayj_swap::add_pair_index( const name& user, const symbol& lp_symbol, 
+                            const extended_asset& pool1, const extended_asset& pool2 ) {
     auto id_256 = make256key(pool1.contract.value, pool1.quantity.symbol.raw(),
                              pool2.contract.value, pool2.quantity.symbol.raw());
     pair_index_t::tbl_t pair_index( get_self(), get_self().value );

@@ -63,7 +63,7 @@ private:
     extended_asset process_exch(symbol_code evo_token, extended_asset paying, asset min_expected);
     int64_t compute(int64_t x, int64_t y, int64_t z, int fee);
     asset string_to_asset(string input);
-    void place_index(const name& user, const symbol& lp_symbol, const extended_asset& pool1, const extended_asset& pool2 );
+    void add_pair_index(const name& user, const symbol& lp_symbol, const extended_asset& pool1, const extended_asset& pool2 );
     void add_balance( const name& owner, const asset& value, const name& ram_payer );
     void sub_balance( const name& owner, const asset& value );
 };

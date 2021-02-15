@@ -50,12 +50,13 @@ struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
     uint16_t platform_top_count         = 1000;
     name platform_admin;
     name platform_account;
+    name platform_referrer;
     name mall_bank;  //bank for the mall
 
     config_t() {}
 
     EOSLIB_SERIALIZE(config_t,  (withdraw_fee_ratio)(withdraw_mature_days)(allocation_ratios)
-                                (platform_top_count)(platform_admin)(platform_account)(mall_bank) )
+                                (platform_top_count)(platform_admin)(platform_account)(platform_referrer)(mall_bank) )
         
 };
 typedef eosio::singleton< "config"_n, config_t > config_singleton;
@@ -210,6 +211,7 @@ struct CONTRACT_TBL shop_t {
     uint64_t citycenter_id;
     name shop_account;          //shop funds account
     name referral_account;
+    asset received_payment                  = asset{0, HST_SYMBOL};     // clients pay with HST coins
     uint64_t top_reward_count               = 10;   //can be customized by shop admin
     uint64_t top_rewarded_count             = 0;
     spend_index_t last_sunshine_reward_spend_idx; //spending_t::id
@@ -235,7 +237,7 @@ struct CONTRACT_TBL shop_t {
         indexed_by<"cacheupdt"_n,const_mem_fun<shop_t, uint128_t,&shop_t::by_cache_update>  >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter_id)(shop_account)(referral_account)
+    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter_id)(shop_account)(referral_account)(received_payment)
                                 (top_reward_count)(top_rewarded_count)(last_sunshine_reward_spend_idx)(last_top_reward_spend_idx)
                                 (share)(share_cache)(share_cache_updated)(created_at)(updated_at) )
 };
