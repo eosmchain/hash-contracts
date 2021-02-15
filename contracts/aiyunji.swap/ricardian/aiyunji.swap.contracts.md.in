@@ -67,7 +67,7 @@ summary: 'Withdraw funds from extended balance'
 In order to function properly, it is necessary that the contract of {{to_withdraw}} permanently has a transfer action that satisfies the conditions (1), (2), (6) of the present contract's transfer action.
 
 
-<h1 class="contract">inittoken</h1>
+<h1 class="contract">initpair</h1>
 
 ---
 spec_version: "0.2.0"

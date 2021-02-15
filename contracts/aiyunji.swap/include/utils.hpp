@@ -12,6 +12,8 @@ using namespace std;
 #define N( X ) string_to_name(#X)
 #define NAME( X ) string_to_name(X)
 
+#define CHECK(exp, msg) { if (!(exp)) eosio::check(false, msg); }
+
 string_view trim(string_view sv) {
     sv.remove_prefix(std::min(sv.find_first_not_of(" "), sv.size())); // left trim
     sv.remove_suffix(std::min(sv.size()-sv.find_last_not_of(" ")-1, sv.size())); // right trim
