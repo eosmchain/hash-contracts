@@ -49,14 +49,14 @@ struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
     };
     uint16_t platform_top_count         = 1000;
     name platform_admin;
-    name platform_account;
+    name platform_fee_collector;
     name platform_referrer;
     name mall_bank;  //bank for the mall
 
     config_t() {}
 
     EOSLIB_SERIALIZE(config_t,  (withdraw_fee_ratio)(withdraw_mature_days)(allocation_ratios)
-                                (platform_top_count)(platform_admin)(platform_account)(platform_referrer)(mall_bank) )
+                                (platform_top_count)(platform_admin)(platform_fee_collector)(platform_referrer)(mall_bank) )
         
 };
 typedef eosio::singleton< "config"_n, config_t > config_singleton;

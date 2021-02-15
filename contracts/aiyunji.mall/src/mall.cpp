@@ -203,8 +203,10 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& the_user, const na
 	CHECK( issuer == _cstate.platform_admin, "non-platform admin not allowed" )
 	require_auth( issuer );
 
+	CHECK( is_account(the_user), "invalid account: " + the_user.to_string() )
+
 	user_t user(the_user);
-	CHECK( !_dbc.get(user), "user not found: " + the_user.to_string() )
+	CHECK( !_dbc.get(user), "user already registered: " + the_user.to_string() )
 
 	user.referral_account = referrer;
 	user.created_at = time_point_sec( current_time_point() );
@@ -275,8 +277,9 @@ ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 ACTION ayj_mall::init() {
 	//init mall symbol
 	_cstate.mall_bank = "aiyunji.coin"_n;
-	_cstate.platform_account = "masteraychen"_n;
+	_cstate.platform_fee_collector = "masteraychen"_n;
 	_cstate.platform_admin = "hst.admin"_n;
+	_cstate.platform_referrer = "masteraychen"_n;
 }
 
 ACTION ayj_mall::execute() {
@@ -339,7 +342,7 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 		asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
 		CHECK( platform_fees < quant, "Err: withdrawl fees oversized!" )
 
-		TRANSFER( _cstate.mall_bank, _cstate.platform_account, platform_fees, "fees" )
+		TRANSFER( _cstate.mall_bank, _cstate.platform_fee_collector, platform_fees, "fees" )
 		TRANSFER( _cstate.mall_bank, to, quant - platform_fees, "spend reward" )
 	}
 	break;
@@ -353,7 +356,7 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 		asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
 		CHECK( platform_fees < quant, "Err: withdrawl fees oversized!" )
 
-		TRANSFER( _cstate.mall_bank, _cstate.platform_account, platform_fees, "customer ref fees" )
+		TRANSFER( _cstate.mall_bank, _cstate.platform_fee_collector, platform_fees, "customer ref fees" )
 		TRANSFER( _cstate.mall_bank, to, quant - platform_fees, "customer ref reward" )
 		
 	}
@@ -368,7 +371,7 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 		asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
 		CHECK( platform_fees < quant, "Err: withdrawl fees oversized!" )
 
-		TRANSFER( _cstate.mall_bank, _cstate.platform_account, platform_fees, "shop ref fees" )
+		TRANSFER( _cstate.mall_bank, _cstate.platform_fee_collector, platform_fees, "shop ref fees" )
 		TRANSFER( _cstate.mall_bank, to, quant - platform_fees, "shop ref reward" )
 	}
 	break;
