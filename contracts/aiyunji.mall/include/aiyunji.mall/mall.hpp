@@ -58,7 +58,7 @@ namespace ayj {
          void registeruser(const name& issuer, const name& the_user, const name& referrer);
          
          [[eosio::action]]
-         void registershop(const name& issuer, const name& owner, const name& citycenter, const uint64_t& parent_shop_id, const uint64_t& shop_id);
+         void registershop(const name& issuer, const name& owner, const string& shop_name, const name& citycenter, const uint64_t& parent_shop_id, const uint64_t& shop_id);
 
          [[eosio::action]]
          void registercc(const name& issuer, const name& cc_name, const name& cc_account);

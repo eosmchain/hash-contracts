@@ -203,6 +203,7 @@ struct spend_index_t {
 struct CONTRACT_TBL shop_t {
     uint64_t id;                //shop_id
     uint64_t parent_id;         //0 means top
+    string shop_name;
     name citycenter;
     name owner_account;          //shop owner account
     name referral_account;
@@ -232,7 +233,7 @@ struct CONTRACT_TBL shop_t {
         indexed_by<"cacheupdt"_n,const_mem_fun<shop_t, uint128_t,&shop_t::by_cache_update>  >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter)(owner_account)(referral_account)(received_payment)
+    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(shop_name)(citycenter)(owner_account)(referral_account)(received_payment)
                                 (top_reward_count)(top_rewarded_count)(last_sunshine_reward_spend_idx)(last_top_reward_spend_idx)
                                 (share)(share_cache)(share_cache_updated)(created_at)(updated_at) )
 };
