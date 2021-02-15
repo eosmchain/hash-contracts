@@ -217,7 +217,7 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner, const strin
 	CHECK( issuer == _cstate.platform_admin, "non-platform-admin err" )
 	require_auth( issuer );
 
-	CHECK( shop_name.size() < 128, "shop name too long: " + shop_name.size() )
+	CHECK( shop_name.size() < 128, "shop name too long: " + to_string(shop_name.size()) )
 
 	user_t user(owner);
 	CHECK( _dbc.get(user), "user not found: " + issuer.to_string() )
@@ -276,6 +276,7 @@ ACTION ayj_mall::init() {
 	//init mall symbol
 	_cstate.mall_bank = "aiyunji.coin"_n;
 	_cstate.platform_account = "masteraychen"_n;
+	_cstate.platform_admin = "hst.admin"_n;
 }
 
 ACTION ayj_mall::execute() {
