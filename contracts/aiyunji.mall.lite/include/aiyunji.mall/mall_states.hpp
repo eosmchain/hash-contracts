@@ -141,7 +141,7 @@ struct CONTRACT_TBL user_t {
 struct CONTRACT_TBL shop_t {
     uint64_t id;                //shop_id
     uint64_t parent_id;         //0 means top
-    uint64_t citycenter_id;
+    name citycenter;
     name owner_account;          //shop funds account
     name referral_account;
     
@@ -167,7 +167,7 @@ struct CONTRACT_TBL shop_t {
         indexed_by<"referrer"_n, const_mem_fun<shop_t, uint64_t, &shop_t::by_referral> >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter_id)(owner_account)(referral_account)
+    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter)(owner_account)(referral_account)
                                 (total_spending)(day_spending)
                                 (shop_sunshine_share)(shop_top_share)(last_sunshine_reward_spending_id)
                                 (created_at)(updated_at)(rewarded_at) )

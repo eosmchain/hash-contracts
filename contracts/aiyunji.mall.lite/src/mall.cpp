@@ -36,9 +36,9 @@ inline void ayj_mall::credit_platform_top(const asset& total_share) {
 	_gstate.platform_top_share += share4; 	//platform-top: 5%
 }
 
-inline void ayj_mall::credit_citycenter(const asset& total_share, const uint64_t& citycenter_id) {
-	citycenter_t cc(citycenter_id);
-	CHECK( _dbc.get(cc), "Err: citycenter not found: " + to_string(citycenter_id) )
+inline void ayj_mall::credit_citycenter(const asset& total_share, const name& citycenter) {
+	citycenter_t cc(citycenter);
+	CHECK( _dbc.get(cc), "Err: citycenter not found: " + citycenter.to_string() )
 
 	auto share6 = total_share * _cstate.allocation_ratios[6] / ratio_boost; 
 	cc.share += share6; //citycenter:	3%
@@ -88,7 +88,7 @@ void ayj_mall::log_day_spending(const asset& quant, const name& customer, const 
  *  @memo: 		"<user_id>:<shop_id>"
  * 		
  */
-void ayj_mall::creditspend(const name& from, const name& to, const asset& quantity, const string& memo) {
+void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
 	if (to != _self) return;
 
 	require_auth(from);
@@ -96,7 +96,7 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	CHECK( quantity.symbol.is_valid(), "Invalid quantity symbol name" )
 	CHECK( quantity.is_valid(), "Invalid quantity" )
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
-	CHECK( quantity.amount > 0, "creditspend quanity must be positive" )
+	CHECK( quantity.amount > 0, "ontransfer quanity must be positive" )
 
 	_gstate.platform_total_share += quantity;
 	auto shop_id = parse_uint64(memo);
@@ -109,7 +109,7 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	credit_certified(quantity);
 	credit_platform_top(quantity);
 	credit_referrer(quantity);
-	credit_citycenter(quantity, shop.citycenter_id);
+	credit_citycenter(quantity, shop.citycenter);
 	credit_ramusage(quantity);
     
 }
@@ -133,14 +133,14 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& the_user, const na
 
 }
          
-ACTION ayj_mall::registershop(const name& issuer, const name& referrer, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& owner_account) {
+ACTION ayj_mall::registershop(const name& issuer, const name& referrer, const name& citycenter, const uint64_t& parent_shop_id, const name& owner_account) {
 	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
 	require_auth( issuer );
 
 	shop_t::tbl_t shops(_self, _self.value);
 	shops.emplace(_self, [&](auto& row) {
 		row.id 					= shops.available_primary_key();
-		row.citycenter_id		= citycenter_id;
+		row.citycenter			= citycenter;
 		row.parent_id 			= parent_shop_id;
 		row.owner_account 		= owner_account;
 		row.referral_account	= referrer;

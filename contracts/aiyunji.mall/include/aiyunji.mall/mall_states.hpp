@@ -116,7 +116,6 @@ struct [[eosio::table("global2"), eosio::contract("aiyunji.mall")]] global2_t {
 typedef eosio::singleton< "global2"_n, global2_t > global2_singleton;
 
 struct CONTRACT_TBL citycenter_t {
-    uint64_t id;
     name citycenter_name;
     name citycenter_account;
     asset share;
@@ -124,18 +123,14 @@ struct CONTRACT_TBL citycenter_t {
     time_point_sec updated_at;
 
     citycenter_t() {}
-    citycenter_t(const uint64_t& i): id(i) {}
+    citycenter_t(const name& ccn): citycenter_name(ccn) {}
 
     uint64_t scope() const { return 0; }
-    uint64_t primary_key() const { return id; }
-    uint64_t name_key() const { return citycenter_name.value; }
+    uint64_t primary_key() const { return citycenter_name.value; }
 
-    typedef eosio::multi_index<"citycenters"_n, citycenter_t,
-        indexed_by<"ccname"_n, const_mem_fun<citycenter_t, uint64_t, &citycenter_t::name_key> >
-    > tbl_t;
+    typedef eosio::multi_index<"citycenters"_n, citycenter_t> tbl_t;
 
-    EOSLIB_SERIALIZE( citycenter_t, (id)(citycenter_name)(citycenter_account)(share)
-                                    (created_at)(updated_at) )
+    EOSLIB_SERIALIZE( citycenter_t, (citycenter_name)(citycenter_account)(share)(created_at)(updated_at) )
 };
 
 struct user_share_t {
@@ -208,7 +203,7 @@ struct spend_index_t {
 struct CONTRACT_TBL shop_t {
     uint64_t id;                //shop_id
     uint64_t parent_id;         //0 means top
-    uint64_t citycenter_id;
+    name citycenter;
     name owner_account;          //shop owner account
     name referral_account;
     asset received_payment                  = asset{0, HST_SYMBOL};     // clients pay with HST coins
@@ -237,7 +232,7 @@ struct CONTRACT_TBL shop_t {
         indexed_by<"cacheupdt"_n,const_mem_fun<shop_t, uint128_t,&shop_t::by_cache_update>  >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter_id)(owner_account)(referral_account)(received_payment)
+    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter)(owner_account)(referral_account)(received_payment)
                                 (top_reward_count)(top_rewarded_count)(last_sunshine_reward_spend_idx)(last_top_reward_spend_idx)
                                 (share)(share_cache)(share_cache_updated)(created_at)(updated_at) )
 };

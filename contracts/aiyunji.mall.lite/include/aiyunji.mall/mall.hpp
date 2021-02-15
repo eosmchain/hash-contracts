@@ -52,13 +52,13 @@ namespace ayj {
          void init();  //only code maintainer can init
 
          [[eosio::on_notify("*::transfer")]]
-         void creditspend(const name& from, const name& to, const asset& quantity, const string& memo);
+         void ontransfer(const name& from, const name& to, const asset& quantity, const string& memo);
 
          [[eosio::action]]
          void registeruser(const name& issuer, const name& the_user, const name& referrer);
          
          [[eosio::action]]
-         void registershop(const name& issuer, const name& referrer, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& owner_account);
+         void registershop(const name& issuer, const name& referrer, const name& citycenter, const uint64_t& parent_shop_id, const name& owner_account);
 
          [[eosio::action]]
          void registercc(const name& issuer, const name& cc_name, const name& cc_account);
@@ -76,7 +76,7 @@ namespace ayj {
          // void withdrawx(const name& issuer, const name& to, const uint8_t& withdraw_type);
 
          using init_action          = action_wrapper<"init"_n,          &ayj_mall::init >;
-         using transfer_action      = action_wrapper<"transfer"_n,      &ayj_mall::creditspend >;
+         using transfer_action      = action_wrapper<"transfer"_n,      &ayj_mall::ontransfer >;
          using registeruser_action  = action_wrapper<"registeruser"_n,  &ayj_mall::registeruser >;
          using registershop_action  = action_wrapper<"registershop"_n,  &ayj_mall::registershop >;
          using registercc_action    = action_wrapper<"registercc"_n,    &ayj_mall::registercc >;
@@ -90,7 +90,7 @@ namespace ayj {
          inline void credit_shop(const asset& total_share, shop_t& shop);
          inline void credit_certified(const asset& total_share);
          inline void credit_platform_top(const asset& total_share);
-         inline void credit_citycenter(const asset& total_share, const uint64_t& citycenter_id);
+         inline void credit_citycenter(const asset& total_share, const name& citycenter);
          inline void credit_referrer(const asset& total_share);
          inline void credit_ramusage(const asset& total_share);
          inline void log_day_spending(const asset& quant, const name& customer, const uint64_t& shop_id);

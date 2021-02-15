@@ -69,9 +69,9 @@ inline void ayj_mall::credit_platform_top(const asset& total_share) {
 	_gstate.platform_share.top_share += share4; 	//platform-top: 5%
 }
 
-inline void ayj_mall::credit_citycenter(const asset& total_share, const uint64_t& citycenter_id) {
-	citycenter_t cc(citycenter_id);
-	CHECK( _dbc.get(cc), "Err: citycenter not found: " + to_string(citycenter_id) )
+inline void ayj_mall::credit_citycenter(const asset& total_share, const name& citycenter) {
+	citycenter_t cc(citycenter);
+	CHECK( _dbc.get(cc), "Err: citycenter not found: " + citycenter.to_string() )
 	auto share7 				= total_share * _cstate.allocation_ratios[7] / ratio_boost; 
 	cc.share 					+= share7; //citycenter:	3%
 
@@ -160,7 +160,7 @@ void ayj_mall::log_spending(const asset& quant, const name& customer, const uint
  *  @memo: 		"<user_account>@<shop_id>"
  * 		
  */
-void ayj_mall::creditspend(const name& from, const name& to, const asset& quantity, const string& memo) {
+void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
 	if (to != _self) return;
 
 	require_auth(from);
@@ -168,7 +168,7 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	CHECK( quantity.symbol.is_valid(), "Invalid quantity symbol name" )
 	CHECK( quantity.is_valid(), "Invalid quantity" )
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
-	CHECK( quantity.amount > 0, "creditspend quanity must be positive" )
+	CHECK( quantity.amount > 0, "ontransfer quanity must be positive" )
 
 	vector<string_view> params = split(memo, "@");	
 	CHECK( params.size() == 2, "memo must be of <user_account>@<shop_id>" )
@@ -181,7 +181,6 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	auto shop_id 			= parse_uint64(params[1]);
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	auto cc_id 				= shop.citycenter_id;
 
 	auto now				= time_point_sec( current_time_point() );
 	log_spending			( quantity, user_acct, shop_id );
@@ -191,7 +190,7 @@ void ayj_mall::creditspend(const name& from, const name& to, const asset& quanti
 	credit_certified		( quantity );
 	credit_platform_top		( quantity );
 	credit_referrer			( quantity, user, shop, now );
-	credit_citycenter		( quantity, cc_id);
+	credit_citycenter		( quantity, shop.citycenter);
 	credit_ramusage			( quantity );
 }
 
@@ -214,7 +213,7 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& the_user, const na
 
 }
          
-ACTION ayj_mall::registershop(const name& issuer, const name& owner, const uint64_t& citycenter_id, const uint64_t& parent_shop_id, const name& owner_account) {
+ACTION ayj_mall::registershop(const name& issuer, const name& owner, const name& citycenter, const uint64_t& parent_shop_id) {
 	CHECK( issuer == _cstate.platform_admin, "non-platform-admin err" )
 	require_auth( issuer );
 
@@ -227,7 +226,7 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner, const uint6
 	shop_t::tbl_t shops(_self, _self.value);
 	shops.emplace(_self, [&](auto& row) {
 		row.id 					= shops.available_primary_key();
-		row.citycenter_id		= citycenter_id;
+		row.citycenter			= citycenter;
 		row.parent_id 			= parent_shop_id;
 		row.owner_account 		= owner;
 		row.referral_account	= shop_referrer;
@@ -239,18 +238,13 @@ ACTION ayj_mall::registercc(const name& issuer, const name& cc_name, const name&
 	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
 	require_auth( issuer );
 
-	citycenter_t::tbl_t ccs(_self, _self.value);
-	auto idx = ccs.get_index<"ccname"_n>();
-	auto itr = idx.lower_bound(cc_name.value);
+	citycenter_t cc(cc_name);
+	CHECK( !_dbc.get(cc), "citycenter name already registered: " + cc_name.to_string() )
 
-	CHECK( itr != idx.end(), "citycenter name already registered: " + cc_name.to_string() )
-
-	ccs.emplace(_self, [&](auto& row)  {
-		row.id 					= ccs.available_primary_key();
-		row.citycenter_name 	= cc_name;
-		row.citycenter_account 	= cc_account;
-		row.created_at 			= time_point_sec( current_time_point() );
-	});
+	cc.citycenter_account = cc_account;
+	cc.created_at = time_point_sec( current_time_point() );
+	
+	_dbc.set( cc );
 }
 
 ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
