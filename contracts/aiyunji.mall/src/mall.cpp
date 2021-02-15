@@ -213,7 +213,7 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& the_user, const na
 
 }
          
-ACTION ayj_mall::registershop(const name& issuer, const name& owner, const name& citycenter, const uint64_t& parent_shop_id) {
+ACTION ayj_mall::registershop(const name& issuer, const name& owner, const name& citycenter, const uint64_t& parent_shop_id, const uint64_t& shop_id) {
 	CHECK( issuer == _cstate.platform_admin, "non-platform-admin err" )
 	require_auth( issuer );
 
@@ -222,12 +222,20 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner, const name&
 	auto shop_referrer = user.referral_account;
 	if (!shop_referrer)
 		shop_referrer = _cstate.platform_referrer;
-		
+	
+	shop_t shop(shop_id);
+	CHECK( !_dbc.get(shop), "shop already registered: " + to_string(shop_id) );
+
+	if (parent_shop_id != 0) {
+		shop_t p_shop(parent_shop_id);
+		CHECK( _dbc.get(p_shop), "parnet shop not registered: " + to_string(parent_shop_id) );
+	}
+
 	shop_t::tbl_t shops(_self, _self.value);
 	shops.emplace(_self, [&](auto& row) {
-		row.id 					= shops.available_primary_key();
-		row.citycenter			= citycenter;
+		row.id 					= shop_id;
 		row.parent_id 			= parent_shop_id;
+		row.citycenter			= citycenter;
 		row.owner_account 		= owner;
 		row.referral_account	= shop_referrer;
 	});
