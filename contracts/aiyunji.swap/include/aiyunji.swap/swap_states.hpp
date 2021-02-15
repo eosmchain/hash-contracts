@@ -66,6 +66,7 @@ CONTRACT_TBL account {
     typedef eosio::multi_index< "accounts"_n, account > tbl_t;
 };
 
+//scope: lp user
 CONTRACT_TBL dexaccount {
     uint64_t id;
     extended_asset balance;

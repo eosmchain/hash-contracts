@@ -55,7 +55,7 @@ void ayj_swap::ontransfer(const name& from, const name& to, const asset& quantit
           deposit_to_acct = name(trim(memosv.substr(DEPOSIT_TO.size())));
           check(deposit_to_acct != get_self(), "Donation not accepted");
       }
-      add_signed_ext_balance(deposit_to_acct, incoming);
+      add_lp_balance(deposit_to_acct, incoming);
     }
 }
 
@@ -63,7 +63,7 @@ ACTION ayj_swap::withdraw(const name& user, const name& to, const extended_asset
     require_auth( user );
     CHECK( to_withdraw.quantity.amount > 0, "quantity must be positive" )
 
-    add_signed_ext_balance(user, -to_withdraw);
+    add_lp_balance(user, -to_withdraw);
 
     TRANSFER( to_withdraw.contract, to, to_withdraw.quantity, memo )
 }
@@ -123,8 +123,8 @@ void ayj_swap::add_signed_liq(const name& user, const asset& to_add, const bool 
     CHECK( (to_pay1.quantity.amount <= max_asset1.amount) && 
            (to_pay2.quantity.amount <= max_asset2.amount), "available is less than expected")
 
-    add_signed_ext_balance(user, -to_pay1);
-    add_signed_ext_balance(user, -to_pay2);
+    add_lp_balance(user, -to_pay1);
+    add_lp_balance(user, -to_pay2);
     (to_add.amount > 0)? add_balance(user, to_add, user) : sub_balance(user, -to_add);
     if (token->fee_contract) require_recipient(token->fee_contract);
 
@@ -145,8 +145,8 @@ ACTION ayj_swap::exchange(  const name& user, const symbol_code& pair_token,
            "ext_asset_in must be nonzero and min_expected must have same sign or be zero")
 
     auto ext_asset_out = process_exch(pair_token, ext_asset_in, min_expected);
-    add_signed_ext_balance(user, -ext_asset_in);
-    add_signed_ext_balance(user, ext_asset_out);
+    add_lp_balance(user, -ext_asset_in);
+    add_lp_balance(user, ext_asset_out);
 }
 
 extended_asset ayj_swap::process_exch(symbol_code pair_token, extended_asset ext_asset_in, asset min_expected){
@@ -239,10 +239,10 @@ ACTION ayj_swap::initpair(const name& user, const symbol& new_symbol,
         a.fee_contract  = fee_contract;
     } );
 
-    placeindex(user, new_symbol, initial_pool1, initial_pool2);
+    place_index(user, new_symbol, initial_pool1, initial_pool2);
     add_balance(user, new_token, user);
-    add_signed_ext_balance(user, -initial_pool1);
-    add_signed_ext_balance(user, -initial_pool2);
+    add_lp_balance(user, -initial_pool1);
+    add_lp_balance(user, -initial_pool2);
 }
 
 ACTION ayj_swap::indexpair(const name& user, const symbol& lp_symbol) {
@@ -251,7 +251,7 @@ ACTION ayj_swap::indexpair(const name& user, const symbol& lp_symbol) {
     check ( token != statstable.end(), "token symbol does not exist" );
     auto pool1 = token->pool1;
     auto pool2 = token->pool2;
-    placeindex(user, lp_symbol, pool1, pool2);
+    place_index(user, lp_symbol, pool1, pool2);
 }
 
 ACTION ayj_swap::changefee(const symbol_code& pair_token, const int newfee) {
@@ -265,7 +265,7 @@ ACTION ayj_swap::changefee(const symbol_code& pair_token, const int newfee) {
 }
 
 
-void ayj_swap::placeindex(const name& user, const symbol& lp_symbol, 
+void ayj_swap::place_index(const name& user, const symbol& lp_symbol, 
                           const extended_asset& pool1, const extended_asset& pool2 ) {
     auto id_256 = make256key(pool1.contract.value, pool1.quantity.symbol.raw(),
                              pool2.contract.value, pool2.quantity.symbol.raw());
@@ -280,7 +280,7 @@ void ayj_swap::placeindex(const name& user, const symbol& lp_symbol,
     });
 }
 
-void ayj_swap::add_signed_ext_balance( const name& user, const extended_asset& to_add ) {
+void ayj_swap::add_lp_balance( const name& user, const extended_asset& to_add ) {
     check( to_add.quantity.is_valid(), "invalid asset" );
     dexaccount::tbl_t acnts( get_self(), user.value );
     auto index = acnts.get_index<"extended"_n>();

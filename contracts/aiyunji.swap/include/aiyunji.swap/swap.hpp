@@ -57,13 +57,13 @@ public:
     [[eosio::action]] void indexpair( const name& user, const symbol& lp_symbol); // This action is only temporarily useful
 
 private:
-    void add_signed_ext_balance( const name& owner, const extended_asset& value );
+    void add_lp_balance( const name& owner, const extended_asset& value );
     void add_signed_liq( const name& user, const asset& to_buy, const bool is_buying, const asset& max_asset1, const asset& max_asset2);
     void memoexchange( const name& user, const extended_asset& ext_asset_in, const string_view& details);
     extended_asset process_exch(symbol_code evo_token, extended_asset paying, asset min_expected);
     int64_t compute(int64_t x, int64_t y, int64_t z, int fee);
     asset string_to_asset(string input);
-    void placeindex(const name& user, const symbol& lp_symbol, const extended_asset& pool1, const extended_asset& pool2 );
+    void place_index(const name& user, const symbol& lp_symbol, const extended_asset& pool1, const extended_asset& pool2 );
     void add_balance( const name& owner, const asset& value, const name& ram_payer );
     void sub_balance( const name& owner, const asset& value );
 };
