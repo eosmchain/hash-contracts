@@ -141,7 +141,7 @@ ACTION ayj_mall::registershop(const name& issuer, const name& referrer, const na
 	shops.emplace(_self, [&](auto& row) {
 		row.id 					= shops.available_primary_key();
 		row.citycenter			= citycenter;
-		row.parent_id 			= parent_shop_id;
+		row.pid 			= parent_shop_id;
 		row.owner_account 		= owner_account;
 		row.referral_account	= referrer;
 	});
@@ -161,7 +161,7 @@ ACTION ayj_mall::registercc(const name& issuer, const name& cc_name, const name&
 	ccs.emplace(_self, [&](auto& row)  {
 		row.id 					= ccs.available_primary_key();
 		row.citycenter_name 	= cc_name;
-		row.citycenter_account 	= cc_account;
+		row.account 	= cc_account;
 		row.created_at 			= time_point_sec( current_time_point() );
 	});
 }

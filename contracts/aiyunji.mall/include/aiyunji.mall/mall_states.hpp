@@ -116,21 +116,22 @@ struct [[eosio::table("global2"), eosio::contract("aiyunji.mall")]] global2_t {
 typedef eosio::singleton< "global2"_n, global2_t > global2_singleton;
 
 struct CONTRACT_TBL citycenter_t {
-    name citycenter_name;
-    name citycenter_account;
+    uint64_t id;    //PK
+    string cc_name;
+    name cc_account;
     asset share;
     time_point_sec created_at;
     time_point_sec updated_at;
 
     citycenter_t() {}
-    citycenter_t(const name& ccn): citycenter_name(ccn) {}
+    citycenter_t(const uint64_t& ccid): id(ccid) {}
 
     uint64_t scope() const { return 0; }
-    uint64_t primary_key() const { return citycenter_name.value; }
+    uint64_t primary_key() const { return id; }
 
-    typedef eosio::multi_index<"citycenters"_n, citycenter_t> tbl_t;
+    typedef eosio::multi_index<"citycenter"_n, citycenter_t> tbl_t;
 
-    EOSLIB_SERIALIZE( citycenter_t, (citycenter_name)(citycenter_account)(share)(created_at)(updated_at) )
+    EOSLIB_SERIALIZE( citycenter_t, (id)(cc_name)(cc_account)(share)(created_at)(updated_at) )
 };
 
 struct user_share_t {
@@ -202,9 +203,9 @@ struct spend_index_t {
 
 struct CONTRACT_TBL shop_t {
     uint64_t id;                //shop_id
-    uint64_t parent_id;         //0 means top
+    uint64_t pid;               //parent id, 0 means top
+    uint64_t cc_id;
     string shop_name;
-    name citycenter;
     name owner_account;          //shop owner account
     name referral_account;
     asset received_payment                  = asset{0, HST_SYMBOL};     // clients pay with HST coins
@@ -223,17 +224,17 @@ struct CONTRACT_TBL shop_t {
 
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return id; }
-    uint64_t by_parent_id() const { return parent_id; }
+    uint64_t by_pid() const { return pid; }
     uint64_t by_referral() const { return referral_account.value; }
     uint128_t by_cache_update() const { return (uint128_t) share_cache_updated ? 1 : 0 | id; }
 
     typedef eosio::multi_index< "shops"_n, shop_t,
-        indexed_by<"parentid"_n, const_mem_fun<shop_t, uint64_t, &shop_t::by_parent_id>     >,
+        indexed_by<"parentid"_n, const_mem_fun<shop_t, uint64_t, &shop_t::by_pid>     >,
         indexed_by<"referrer"_n, const_mem_fun<shop_t, uint64_t, &shop_t::by_referral>      >,
         indexed_by<"cacheupdt"_n,const_mem_fun<shop_t, uint128_t,&shop_t::by_cache_update>  >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(shop_name)(citycenter)(owner_account)(referral_account)(received_payment)
+    EOSLIB_SERIALIZE( shop_t,   (id)(pid)(cc_id)(shop_name)(owner_account)(referral_account)(received_payment)
                                 (top_reward_count)(top_rewarded_count)(last_sunshine_reward_spend_idx)(last_top_reward_spend_idx)
                                 (share)(share_cache)(share_cache_updated)(created_at)(updated_at) )
 };

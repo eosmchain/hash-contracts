@@ -69,9 +69,9 @@ inline void ayj_mall::credit_platform_top(const asset& total_share) {
 	_gstate.platform_share.top_share += share4; 	//platform-top: 5%
 }
 
-inline void ayj_mall::credit_citycenter(const asset& total_share, const name& citycenter) {
-	citycenter_t cc(citycenter);
-	CHECK( _dbc.get(cc), "Err: citycenter not found: " + citycenter.to_string() )
+inline void ayj_mall::credit_citycenter(const asset& total_share, const uint64_t& cc_id) {
+	citycenter_t cc(cc_id);
+	CHECK( _dbc.get(cc), "Err: citycenter not found: " + to_string(cc_id) )
 	auto share7 				= total_share * _cstate.allocation_ratios[7] / ratio_boost; 
 	cc.share 					+= share7; //citycenter:	3%
 
@@ -190,7 +190,7 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	credit_certified		( quantity );
 	credit_platform_top		( quantity );
 	credit_referrer			( quantity, user, shop, now );
-	credit_citycenter		( quantity, shop.citycenter);
+	credit_citycenter		( quantity, shop.cc_id);
 	credit_ramusage			( quantity );
 }
 
@@ -215,7 +215,7 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& user, const name& 
 
 }
          
-ACTION ayj_mall::registershop(const name& issuer, const name& owner, const string& shop_name, const name& citycenter, const uint64_t& parent_shop_id, const uint64_t& shop_id) {
+ACTION ayj_mall::registershop(const name& issuer, const name& owner, const string& shop_name, const uint64_t& cc_id, const uint64_t& parent_shop_id, const uint64_t& shop_id) {
 	CHECK( issuer == _cstate.platform_admin, "non-platform-admin err" )
 	require_auth( issuer );
 
@@ -238,24 +238,29 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner, const strin
 	shop_t::tbl_t shops(_self, _self.value);
 	shops.emplace(_self, [&](auto& row) {
 		row.id 					= shop_id;
-		row.parent_id 			= parent_shop_id;
+		row.pid 				= parent_shop_id;
 		row.shop_name		 	= shop_name;
-		row.citycenter			= citycenter;
+		row.cc_id				= cc_id;
 		row.owner_account 		= owner;
 		row.referral_account	= shop_referrer;
 	});
 
 }
 
-ACTION ayj_mall::registercc(const name& issuer, const name& cc_name, const name& cc_account) {
+ACTION ayj_mall::registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& cc_account) {
 	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
 	require_auth( issuer );
 
-	citycenter_t cc(cc_name);
-	if (!_dbc.get(cc)) //must be called prior to setting its fields
-		cc.created_at = time_point_sec( current_time_point() );
+	CHECK( cc_name.size() < 128, "citycenter name length too long: " + cc_name )
 
-	cc.citycenter_account = cc_account;
+	auto now = time_point_sec( current_time_point() );
+	citycenter_t cc(cc_id);
+	if (!_dbc.get(cc)) //must be called prior to setting its fields
+		cc.created_at = now;
+
+	cc.cc_name = cc_name;
+	cc.cc_account = cc_account;
+	cc.updated_at = now;
 
 	_dbc.set( cc );
 }

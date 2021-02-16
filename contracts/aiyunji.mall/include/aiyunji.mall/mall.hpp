@@ -58,10 +58,10 @@ namespace ayj {
          void registeruser(const name& issuer, const name& user, const name& referrer);
          
          [[eosio::action]]
-         void registershop(const name& issuer, const name& owner, const string& shop_name, const name& citycenter, const uint64_t& parent_shop_id, const uint64_t& shop_id);
+         void registershop(const name& issuer, const name& owner, const string& shop_name, const uint64_t& cc_id, const uint64_t& parent_shop_id, const uint64_t& shop_id);
 
          [[eosio::action]]
-         void registercc(const name& issuer, const name& cc_name, const name& cc_account);
+         void registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& cc_account);
    
          [[eosio::action]]
          void certifyuser(const name& issuer, const name& user);
@@ -93,7 +93,7 @@ namespace ayj {
          inline void credit_certified(const asset& total_share);
          inline void credit_platform_top(const asset& total_share);
          inline void credit_referrer(const asset& total_share, const user_t& user, const shop_t& shop, const time_point_sec& now);
-         inline void credit_citycenter(const asset& total_share, const name& citycenter);
+         inline void credit_citycenter(const asset& total_share, const uint64_t& cc_id);
          inline void credit_ramusage(const asset& total_share);
          
          inline bool reward_shops();

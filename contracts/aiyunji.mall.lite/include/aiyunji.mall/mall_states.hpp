@@ -95,8 +95,8 @@ typedef eosio::singleton< "global2"_n, global2_t > global2_singleton;
 
 struct CONTRACT_TBL citycenter_t {
     uint64_t id;
-    name citycenter_name;
-    name citycenter_account;
+    string name;
+    name account;
     asset share;
     time_point_sec created_at;
     time_point_sec updated_at;
@@ -106,14 +106,11 @@ struct CONTRACT_TBL citycenter_t {
 
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return id; }
-    uint64_t name_key() const { return citycenter_name.value; }
 
-    typedef eosio::multi_index<"citycenters"_n, citycenter_t,
-        indexed_by<"ccname"_n, const_mem_fun<citycenter_t, uint64_t, &citycenter_t::name_key> >
-    > tbl_t;
+    typedef eosio::multi_index<"citycenter"_n, citycenter_t> tbl_t;
 
-    EOSLIB_SERIALIZE( citycenter_t, (id)(citycenter_name)(citycenter_account)(share)
-                                    (created_at)(updated_at) )
+    EOSLIB_SERIALIZE( citycenter_t, (id)(name)(account)(share)(created_at)(updated_at) )
+
 };
 
 struct CONTRACT_TBL user_t {
@@ -131,7 +128,7 @@ struct CONTRACT_TBL user_t {
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return account.value; }
 
-    typedef eosio::multi_index<"users"_n, user_t> tbl_t;
+    typedef eosio::multi_index<"user"_n, user_t> tbl_t;
 
     EOSLIB_SERIALIZE( user_t,   (account)(referral_account)
                                 (spending_reward)(customer_referral_reward)(shop_referral_reward)
@@ -140,8 +137,8 @@ struct CONTRACT_TBL user_t {
 
 struct CONTRACT_TBL shop_t {
     uint64_t id;                //shop_id
-    uint64_t parent_id;         //0 means top
-    name citycenter;
+    uint64_t pid;         //0 means top
+    uint64_t cc_id;             //citycenter id
     name owner_account;          //shop funds account
     name referral_account;
     
@@ -160,14 +157,14 @@ struct CONTRACT_TBL shop_t {
 
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return id; }
-    uint64_t by_parent_id() const { return parent_id; }
+    uint64_t by_pid() const { return pid; }
     uint64_t by_referral() const { return referral_account.value; }
-    typedef eosio::multi_index< "shops"_n, shop_t,
-        indexed_by<"parentid"_n, const_mem_fun<shop_t, uint64_t, &shop_t::by_parent_id> >,
+    typedef eosio::multi_index< "shop"_n, shop_t,
+        indexed_by<"parentid"_n, const_mem_fun<shop_t, uint64_t, &shop_t::by_pid> >,
         indexed_by<"referrer"_n, const_mem_fun<shop_t, uint64_t, &shop_t::by_referral> >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( shop_t,   (id)(parent_id)(citycenter)(owner_account)(referral_account)
+    EOSLIB_SERIALIZE( shop_t,   (id)(pid)(cc_id)(owner_account)(referral_account)
                                 (total_spending)(day_spending)
                                 (shop_sunshine_share)(shop_top_share)(last_sunshine_reward_spending_id)
                                 (created_at)(updated_at)(rewarded_at) )
@@ -187,7 +184,7 @@ struct CONTRACT_TBL day_spending_t {
     uint64_t by_spending() const { return std::numeric_limits<uint64_t>::max() - spending.amount; }
    
     typedef eosio::multi_index
-    < "dayspends"_n, day_spending_t,
+    < "dayspend"_n, day_spending_t,
         indexed_by<"daycustomer"_n, const_mem_fun<day_spending_t, uint128_t, &day_spending_t::day_customer_key> >,
         indexed_by<"spends"_n,      const_mem_fun<day_spending_t, uint64_t, &day_spending_t::by_spending> >
     > tbl_t;
@@ -204,7 +201,7 @@ struct CONTRACT_TBL certification_t {
     uint64_t scope() const { return 0; } //shop-wise spending sorting, to derive top10
     uint64_t primary_key() const { return user.value; }
 
-    typedef eosio::multi_index<"certusers"_n, certification_t> tbl_t;
+    typedef eosio::multi_index<"certuser"_n, certification_t> tbl_t;
 
     EOSLIB_SERIALIZE( certification_t, (user)(created_at) )
 };
