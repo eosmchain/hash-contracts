@@ -62,7 +62,7 @@ namespace ayj {
 
          [[eosio::action]]
          void registercc(const name& issuer, const name& cc_name, const name& cc_account);
-
+   
          [[eosio::action]]
          void certifyuser(const name& issuer, const name& user);
 

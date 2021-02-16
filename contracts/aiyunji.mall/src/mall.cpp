@@ -252,11 +252,11 @@ ACTION ayj_mall::registercc(const name& issuer, const name& cc_name, const name&
 	require_auth( issuer );
 
 	citycenter_t cc(cc_name);
-	CHECK( !_dbc.get(cc), "citycenter name already registered: " + cc_name.to_string() )
+	if (!_dbc.get(cc)) //must be called prior to setting its fields
+		cc.created_at = time_point_sec( current_time_point() );
 
 	cc.citycenter_account = cc_account;
-	cc.created_at = time_point_sec( current_time_point() );
-	
+
 	_dbc.set( cc );
 }
 
