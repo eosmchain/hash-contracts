@@ -55,7 +55,7 @@ namespace ayj {
          void ontransfer(const name& from, const name& to, const asset& quantity, const string& memo);
 
          [[eosio::action]]
-         void registeruser(const name& issuer, const name& the_user, const name& referrer);
+         void registeruser(const name& issuer, const name& user, const name& referrer);
          
          [[eosio::action]]
          void registershop(const name& issuer, const name& referrer, const name& citycenter, const uint64_t& parent_shop_id, const name& owner_account);

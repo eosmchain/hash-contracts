@@ -116,20 +116,20 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 
 /**
  *  @issuer: platform admin who helps to register
- *  @the_user: the new user to register
+ *  @user: the new user to register
  *  @referrer: one who referrs the user onto this platform, if "0" it means empty referrer
  */
-ACTION ayj_mall::registeruser(const name& issuer, const name& the_user, const name& referrer) {
+ACTION ayj_mall::registeruser(const name& issuer, const name& user, const name& referrer) {
 	CHECK( issuer == _cstate.platform_admin, "" )
 	require_auth( issuer );
 
-	user_t user(the_user);
-	CHECK( !_dbc.get(user), "user not found: " + the_user.to_string() )
+	user_t new_user(user);
+	CHECK( !_dbc.get(new_user), "user not found: " + user.to_string() )
 
-	user.referral_account = referrer;
-	user.created_at = time_point_sec( current_time_point() );
+	new_user.referral_account = referrer;
+	new_user.created_at = time_point_sec( current_time_point() );
 
-	_dbc.set(user);
+	_dbc.set(new_user);
 
 }
          
