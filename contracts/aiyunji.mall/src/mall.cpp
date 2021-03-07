@@ -215,13 +215,13 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& user, const name& 
 
 }
          
-ACTION ayj_mall::registershop(const name& issuer, const name& owner, const string& shop_name, const uint64_t& cc_id, const uint64_t& parent_shop_id, const uint64_t& shop_id) {
+ACTION ayj_mall::registershop(const name& issuer, const name& owner_account, const string& shop_name, const uint64_t& cc_id, const uint64_t& parent_shop_id, const uint64_t& shop_id) {
 	CHECK( issuer == _cstate.platform_admin, "non-platform-admin err" )
 	require_auth( issuer );
 
 	CHECK( shop_name.size() < 128, "shop name too long: " + to_string(shop_name.size()) )
 
-	user_t user(owner);
+	user_t user(owner_account);
 	CHECK( _dbc.get(user), "user not found: " + issuer.to_string() )
 	auto shop_referrer = user.referral_account;
 	if (!shop_referrer)
@@ -241,7 +241,7 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner, const strin
 		row.pid 				= parent_shop_id;
 		row.shop_name		 	= shop_name;
 		row.cc_id				= cc_id;
-		row.owner_account 		= owner;
+		row.owner_account 		= owner_account;
 		row.referral_account	= shop_referrer;
 	});
 
