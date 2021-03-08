@@ -199,6 +199,8 @@ struct spend_index_t {
     uint256_t get_index() {
         return uint256_t::make_from_word_sequence<uint64_t>(shop_id, std::numeric_limits<uint64_t>::max() - spending.amount, spending_id, 0ULL);
     }
+
+    EOSLIB_SERIALIZE( spend_index_t, (shop_id)(spending_id)(spending) )
 };
 
 struct CONTRACT_TBL shop_t {

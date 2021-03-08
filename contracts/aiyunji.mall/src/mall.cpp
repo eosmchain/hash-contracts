@@ -235,16 +235,14 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner_account, con
 		CHECK( _dbc.get(p_shop), "parnet shop not registered: " + to_string(parent_shop_id) );
 	}
 
-	shop_t::tbl_t shops(_self, _self.value);
-	shops.emplace(_self, [&](auto& row) {
-		row.id 					= shop_id;
-		row.pid 				= parent_shop_id;
-		row.shop_name		 	= shop_name;
-		row.cc_id				= cc_id;
-		row.owner_account 		= owner_account;
-		row.referral_account	= shop_referrer;
-	});
+	shop.pid 				= parent_shop_id;
+	shop.shop_name		 	= shop_name;
+	shop.cc_id				= cc_id;
+	shop.owner_account 		= owner_account;
+	shop.referral_account	= shop_referrer;
+	shop.created_at			= time_point_sec( current_time_point() );
 
+	_dbc.set( shop );
 }
 
 ACTION ayj_mall::registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& cc_account) {
