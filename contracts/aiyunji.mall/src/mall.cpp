@@ -154,7 +154,7 @@ void ayj_mall::log_spending(const asset& quant, const name& customer, const uint
 /**
  * 	triggered by transfer event of a token contract
  *
- *  @from: 		only admin user allowed
+ *  @from: 		admin or user
  *  @to: 		mall contract or self
  *  @quantity:	amount issued and transferred
  *  @memo: 		format-1: "<user_account>@<shop_id>"
@@ -165,7 +165,6 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	if (to != _self) return;
 
 	require_auth(from);
-	CHECK( from == _cstate.platform_admin, "non-admin user not allowed" )
 	CHECK( quantity.symbol.is_valid(), "Invalid quantity symbol name" )
 	CHECK( quantity.is_valid(), "Invalid quantity" )
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
