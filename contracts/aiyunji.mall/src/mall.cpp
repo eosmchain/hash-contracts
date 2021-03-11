@@ -157,7 +157,8 @@ void ayj_mall::log_spending(const asset& quant, const name& customer, const uint
  *  @from: 		only admin user allowed
  *  @to: 		mall contract or self
  *  @quantity:	amount issued and transferred
- *  @memo: 		"<user_account>@<shop_id>"
+ *  @memo: 		format-1: "<user_account>@<shop_id>"
+ *              format-2: "burn"
  * 		
  */
 void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
@@ -169,6 +170,11 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	CHECK( quantity.is_valid(), "Invalid quantity" )
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
 	CHECK( quantity.amount > 0, "ontransfer quanity must be positive" )
+
+	if (memo == "burn") {
+		BURN( _cstate.mall_bank, _self, quantity, "burn" )
+		return;
+	}
 
 	vector<string_view> params = split(memo, "@");	
 	CHECK( params.size() == 2, "memo must be of <user_account>@<shop_id>" )

@@ -14,7 +14,7 @@ namespace eosiosystem {
     {	token::issue_action act{ bank, { {_self, active_perm} } };\
 			act.send( to, quantity, memo );}
 
-#define BURN(bank, from, quantity) \
+#define BURN(bank, from, quantity, memo) \
     {	token::burn_action act{ bank, { {_self, active_perm} } };\
 			act.send( from, quantity, memo );}
 
