@@ -178,7 +178,7 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	vector<string_view> params = split(memo, "@");	
 	CHECK( params.size() == 2, "memo must be of <user_account>@<shop_id>" )
 
-	auto user_acct 			= name( parse_uint64(params[0]) );
+	auto user_acct 			= name(std::string(params[0]));
 	CHECK( is_account(user_acct), "user account not valid: " + std::string(params[0]) )
 	user_t user(user_acct);
 	CHECK( !_dbc.get( user ), "user not registered: " + user_acct.to_string() );
