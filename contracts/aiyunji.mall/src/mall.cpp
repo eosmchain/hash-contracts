@@ -189,7 +189,6 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 
 	auto now				= time_point_sec( current_time_point() );
 	log_spending			( quantity, user_acct, shop_id );
-	
 	credit_user				( quantity, user, now );
 	credit_shop				( quantity, shop, now );
 	credit_certified		( quantity );

@@ -119,7 +119,7 @@ struct CONTRACT_TBL citycenter_t {
     uint64_t id;    //PK
     string cc_name;
     name cc_account;
-    asset share;
+    asset share = asset(0, HST_SYMBOL);
     time_point_sec created_at;
     time_point_sec updated_at;
 
