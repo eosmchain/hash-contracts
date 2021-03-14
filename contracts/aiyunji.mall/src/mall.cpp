@@ -181,7 +181,7 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	auto user_acct 			= name(std::string(params[0]));
 	CHECK( is_account(user_acct), "user account not valid: " + std::string(params[0]) )
 	user_t user(user_acct);
-	CHECK( !_dbc.get( user ), "user not registered: " + user_acct.to_string() );
+	CHECK( _dbc.get( user ), "user not registered: " + user_acct.to_string() );
 
 	auto shop_id 			= parse_uint64(params[1]);
 	shop_t shop(shop_id);
@@ -239,6 +239,9 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner_account, con
 		shop_t p_shop(parent_shop_id);
 		CHECK( _dbc.get(p_shop), "parnet shop not registered: " + to_string(parent_shop_id) );
 	}
+
+	citycenter_t cc(cc_id);
+	CHECK( _dbc.get(cc), "Err: citycenter not found: " + to_string(cc_id) )
 
 	shop.pid 				= parent_shop_id;
 	shop.shop_name		 	= shop_name;
