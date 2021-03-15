@@ -73,8 +73,10 @@ inline void ayj_mall::credit_citycenter(const asset& total_share, const uint64_t
 	citycenter_t cc(cc_id);
 	CHECK( _dbc.get(cc), "Err: citycenter not found: " + to_string(cc_id) )
 	auto share7 				= total_share * _cstate.allocation_ratios[7] / ratio_boost; 
-	cc.share 					+= share7; //citycenter:	3%
+	if (cc.share.amount == 0)	
+		cc.share.symbol = HST_SYMBOL;
 
+	cc.share 					+= share7; //citycenter:	3%
 	_dbc.set( cc );
 }
 
@@ -284,12 +286,35 @@ ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 	_gstate.platform_share.certified_user_count++;
 }
 
-ACTION ayj_mall::init() {
-	//init mall symbol
+void ayj_mall::_init() {
 	_cstate.mall_bank = "aiyunji.coin"_n;
 	_cstate.platform_fee_collector = "masteraychen"_n;
 	_cstate.platform_admin = "hst.admin"_n;
 	_cstate.platform_referrer = "masteraychen"_n;
+}
+
+ACTION ayj_mall::init() {
+	// _init();
+
+	_cstate.withdraw_mature_days = 1;
+
+/*
+	int max_step = 50;
+	int step = 0;
+	citycenter_t::tbl_t ccs(_self, _self.value);
+	uint64_t cc_id = _cstate.withdraw_mature_days + 110000 - 2;
+	auto idx = ccs.upper_bound(cc_id);
+	bool found = false;
+	for (auto itr = idx.begin(); itr != idx.end() && step < max_step; itr++, step++) {
+		ccs.modify( itr, _self, [&]( auto& row ) {
+    		row.share = asset(0, HST_SYMBOL);
+  		});
+
+		found = true;
+		_cstate.withdraw_mature_days += 1;
+	}
+	check( found, "finished!" );
+*/
 }
 
 ACTION ayj_mall::execute() {

@@ -86,6 +86,8 @@ namespace ayj {
          // using withdrawx_action     = action_wrapper<"withdrawx"_n,     &ayj_mall::withdrawx >;
 
       private:
+         void _init();
+         
          inline void log_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
 
          inline void credit_user(const asset& total_share, user_t& user, const time_point_sec& now);
