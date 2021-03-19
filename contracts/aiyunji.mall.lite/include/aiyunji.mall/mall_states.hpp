@@ -21,7 +21,7 @@ static constexpr eosio::name active_perm{"active"_n};
 static constexpr eosio::name SYS_BANK{"eosio.token"_n};
 
 static constexpr symbol   SYS_SYMBOL            = symbol(symbol_code("MGP"), 4);
-static constexpr symbol   HST_SYMBOL            = symbol(symbol_code("HST"), 4);
+static constexpr symbol   HST_SYMBOL            = symbol(symbol_code("AYJ"), 4);
 static constexpr uint32_t seconds_per_year      = 24 * 3600 * 7 * 52;
 static constexpr uint32_t seconds_per_month     = 24 * 3600 * 30;
 static constexpr uint32_t seconds_per_week      = 24 * 3600 * 7;
@@ -31,9 +31,9 @@ static constexpr uint32_t seconds_per_hour      = 3600;
 static constexpr uint32_t ratio_boost           = 10000;
 static constexpr uint32_t MAX_STEP              = 20;
 
-#define CONTRACT_TBL [[eosio::table, eosio::contract("aiyunji.mall")]]
+#define CONTRACT_TBL [[eosio::table, eosio::contract("aiyunji.mall.lite")]]
 
-struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
+struct [[eosio::table("config"), eosio::contract("aiyunji.mall.lite")]] config_t {
     uint16_t withdraw_fee_ratio         = 3000;  //boost by 10000
     uint16_t withdraw_mature_days       = 1;
     vector<uint64_t> allocation_ratios  = {

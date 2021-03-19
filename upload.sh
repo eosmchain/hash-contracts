@@ -2,6 +2,7 @@
 
 sync() {
     host=$1
+    dest=/opt/mgp/node_wallet/data/contracts
 
     rsync -rav -e ssh \
         --include='*.abi' \
@@ -12,7 +13,7 @@ sync() {
         --exclude='*.md' \
         --exclude='CMakeCache.txt' \
         --exclude='CMakeLists.txt' \
-        ./build/contracts/ ${host}:/opt/mgp/wallet/contracts
+        ./build/contracts/ ${host}:${dest}
 
     rsync -rav -e ssh ./unittest.sh ${host}:/opt/mgp/wallet/
 }
