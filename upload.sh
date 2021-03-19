@@ -15,7 +15,7 @@ sync() {
         --exclude='CMakeLists.txt' \
         ./build/contracts/ ${host}:${dest}
 
-    rsync -rav -e ssh ./unittest.sh ${host}:/opt/mgp/wallet/
+    # rsync -rav -e ssh ./unittest.sh ${host}:/opt/mgp/wallet/
 }
 
 sync jw
