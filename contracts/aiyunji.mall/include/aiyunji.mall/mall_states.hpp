@@ -135,12 +135,12 @@ struct CONTRACT_TBL citycenter_t {
 };
 
 struct user_share_t {
-    asset spending_reward           = asset(0, HST_SYMBOL);
-    asset customer_referral_reward  = asset(0, HST_SYMBOL);
-    asset shop_referral_reward      = asset(0, HST_SYMBOL);
+    asset spending_share           = asset(0, HST_SYMBOL);
+    asset customer_referral_share  = asset(0, HST_SYMBOL);
+    asset shop_referral_share      = asset(0, HST_SYMBOL);
 
-    asset total_rewards() const { //used for top 1000 split
-        return spending_reward + customer_referral_reward + shop_referral_reward; 
+    asset total_share() const { //used for top 1000 split
+        return spending_share + customer_referral_share + shop_referral_share; 
     }
 };
 
@@ -159,15 +159,15 @@ struct CONTRACT_TBL user_t {
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return account.value; }
 
-    uint128_t by_total_rewards() const {
-        auto total = share_cache.total_rewards();
+    uint128_t by_total_share() const {
+        auto total = share_cache.total_share();
         return (uint128_t (std::numeric_limits<uint64_t>::max() - total.amount)) << 64 | account.value; 
     }
 
     uint128_t by_cache_update() const { return (uint128_t) share_cache_updated ? 1 : 0 | account.value; }
 
     typedef eosio::multi_index<"users"_n, user_t,
-        indexed_by<"totalrewards"_n, const_mem_fun<user_t, uint128_t, &user_t::by_total_rewards> >,
+        indexed_by<"totalshare"_n, const_mem_fun<user_t, uint128_t, &user_t::by_total_share> >,
         indexed_by<"cacheupdt"_n,    const_mem_fun<user_t, uint128_t, &user_t::by_cache_update>  >
     > tbl_t;
 

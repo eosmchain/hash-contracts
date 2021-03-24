@@ -90,13 +90,13 @@ namespace ayj {
          
          inline void log_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
 
-         inline void credit_user(const asset& total_share, user_t& user, const time_point_sec& now);
-         inline void credit_shop(const asset& total_share, shop_t& shop, const time_point_sec& now);
-         inline void credit_certified(const asset& total_share);
-         inline void credit_platform_top(const asset& total_share);
-         inline void credit_referrer(const asset& total_share, const user_t& user, const shop_t& shop, const time_point_sec& now);
-         inline void credit_citycenter(const asset& total_share, const uint64_t& cc_id);
-         inline void credit_ramusage(const asset& total_share);
+         inline void credit_customer(const asset& total, user_t& user, const uint64_t& shop_id, const time_point_sec& now);
+         inline void credit_shop(const asset& total, shop_t& shop, const time_point_sec& now);
+         inline void credit_certified(const asset& total);
+         inline void credit_platform_top(const asset& total);
+         inline void credit_referrer(const asset& total, const user_t& user, const shop_t& shop, const time_point_sec& now);
+         inline void credit_citycenter(const asset& total, const uint64_t& cc_id);
+         inline void credit_ramusage(const asset& total);
          
          inline bool reward_shops();
          inline bool reward_shop(const uint64_t& shop_id);

@@ -38,15 +38,16 @@ struct [[eosio::table("config"), eosio::contract("aiyunji.mall.lite")]] config_t
     uint16_t withdraw_mature_days       = 1;
     vector<uint64_t> allocation_ratios  = {
         4500,   //0: user share
-        1500,   //1: shop_sunshine share
-        500,    //2: shop_top share
-        800,    //3: certified share
-        500,    //4: pltform_top share
+        1500,   //1: mining pool-A: shop_sunshine reward
+        800,    //2: mining pool-B: shop_top reward
+        500,    //3: mining pool-C: pltform_top reward
+        500,    //4: mining pool-D: certified reward
         1000,   //5: direct_referral share
         500,    //6: direct_agent share
-        300,    //7: city_center share
-        400     //8: ram_usage share
-    };
+        300,    //7: city_center reward
+        400     //8: ram_usage reward
+    };          // rest goes to lucky draw reward
+
     uint16_t platform_top_count         = 1000;
     name platform_admin;
     name platform_fee_collector;

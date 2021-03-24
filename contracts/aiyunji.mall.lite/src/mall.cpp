@@ -39,8 +39,18 @@ inline void ayj_mall::update_share_cache(spending_t& spend) {
 	spend.share_cache_updated 	= !_gstate.executing;
 }
 
-inline void ayj_mall::credit_user(const asset& total_share, user_t& user, const time_point_sec& now) {
+// remaining, share0, user, shop_id, now 
+inline void ayj_mall::credit_customer(const asset& total_share, user_t& user, const time_point_sec& now) {
 	auto share0 				= total_share * _cstate.allocation_ratios[0] / ratio_boost;
+	auto share1 			= quantity * ratios[1] / ratio_boost; //mining pool-A: shop_sunshine reward
+	auto share2 			= quantity * ratios[2] / ratio_boost; //mining pool-B: shop_top reward
+	auto share3 			= quantity * ratios[3] / ratio_boost; //mining pool-C: pltform_top reward
+	auto share4 			= quantity * ratios[4] / ratio_boost; //mining pool-D: certified reward
+	auto share5 			= quantity * ratios[5] / ratio_boost; //direct_referral share
+	auto share6 			= quantity * ratios[6] / ratio_boost; //direct_agent share
+	auto share7 			= quantity * ratios[7] / ratio_boost; //city_center reward
+	auto share8 			= quantity * ratios[8] / ratio_boost; //ram_usage reward
+
 	user.share.spending_reward 	+= share0; 	//user:		45%
 	user.updated_at 			= now;
 	update_share_cache(user);
@@ -191,7 +201,7 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 
 	auto now				= time_point_sec( current_time_point() );
 	log_spending			( quantity, user_acct, shop_id );
-	credit_user				( quantity, user, now );
+	credit_customer				( quantity, user, now );
 	credit_shop				( quantity, shop, now );
 	credit_certified		( quantity );
 	credit_platform_top		( quantity );

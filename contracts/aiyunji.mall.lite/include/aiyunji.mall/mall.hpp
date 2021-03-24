@@ -90,7 +90,7 @@ namespace ayj {
          
          inline void log_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
 
-         inline void credit_user(const asset& total_share, user_t& user, const time_point_sec& now);
+         inline void credit_customer(const asset& total_share, user_t& user, const time_point_sec& now);
          inline void credit_shop(const asset& total_share, shop_t& shop, const time_point_sec& now);
          inline void credit_certified(const asset& total_share);
          inline void credit_platform_top(const asset& total_share);
