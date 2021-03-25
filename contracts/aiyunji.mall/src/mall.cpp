@@ -291,9 +291,9 @@ void ayj_mall::_init() {
 }
 
 ACTION ayj_mall::init() {
-	// _init();
+	_init();
 
-	// _cstate.withdraw_mature_days = 1;
+	_cstate.withdraw_mature_days = 1;
 
 /*
 	int max_step = 50;
