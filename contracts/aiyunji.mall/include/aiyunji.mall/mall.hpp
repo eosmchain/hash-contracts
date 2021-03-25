@@ -61,13 +61,17 @@ namespace ayj {
          void registershop(const name& issuer, const name& owner_account, const string& shop_name, const uint64_t& cc_id, const uint64_t& parent_shop_id, const uint64_t& shop_id);
 
          [[eosio::action]]
-         void registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& cc_account);
+         void registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& admin);
    
          [[eosio::action]]
          void certifyuser(const name& issuer, const name& user);
 
          [[eosio::action]]
-         void execute(); //anyone can invoke, but usually by the platform
+         void rewardshops(); //anyone can invoke, but usually by the platform
+         [[eosio::action]]
+         void rewardptops(); //anyone can invoke, but usually by the platform
+         [[eosio::action]]
+         void rewardcerts(); //anyone can invoke, but usually by the platform
 
          [[eosio::action]] // user or admin to withdraw, type 0: spending, 1: customer referral, 2: shop referral
          void withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, const uint64_t& shop_id);
@@ -81,14 +85,17 @@ namespace ayj {
          using registershop_action  = action_wrapper<"registershop"_n,  &ayj_mall::registershop >;
          using registercc_action    = action_wrapper<"registercc"_n,    &ayj_mall::registercc >;
          using certifyuser_action   = action_wrapper<"certifyuser"_n,   &ayj_mall::certifyuser >;
-         using execute_action       = action_wrapper<"execute"_n,       &ayj_mall::execute >;
+         using rewardshops_action   = action_wrapper<"rewardshops"_n,   &ayj_mall::rewardshops >;
+         using rewardcerts_action   = action_wrapper<"rewardcerts"_n,   &ayj_mall::rewardcerts >;
+         using rewardptops_action   = action_wrapper<"rewardptops"_n,   &ayj_mall::rewardptops >;
          using withdraw_action      = action_wrapper<"withdraw"_n,      &ayj_mall::withdraw >;
          // using withdrawx_action     = action_wrapper<"withdrawx"_n,     &ayj_mall::withdrawx >;
 
       private:
-         void _init();
-         
-         inline void log_spending(const asset& quant, const name& customer, const uint64_t& shop_id);
+         inline void _init();
+         inline void _check_rewarded(const time_point_sec& last_rewarded_at);
+         inline bool _reward_shop(const uint64_t& shop_id);
+         inline bool _is_today(const time_point_sec& time);
 
          inline void credit_customer(const asset& total, user_t& user, const uint64_t& shop_id, const time_point_sec& now);
          inline void credit_shop(const asset& total, shop_t& shop, const time_point_sec& now);
@@ -98,18 +105,11 @@ namespace ayj {
          inline void credit_citycenter(const asset& total, const uint64_t& cc_id);
          inline void credit_ramusage(const asset& total);
          
-         inline bool reward_shops();
-         inline bool reward_shop(const uint64_t& shop_id);
-         inline bool reward_certified();
-         inline bool reward_platform_top();
-
-         bool update_all_caches();
          inline void update_share_cache();
          inline void update_share_cache(user_t& user);
          inline void update_share_cache(shop_t& shop);
          inline void update_share_cache(spending_t& spend);
-
-         inline bool is_today(const time_point_sec& time);
+         
    };
 
 }

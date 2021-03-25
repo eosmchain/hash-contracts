@@ -98,18 +98,19 @@ struct [[eosio::table("global2"), eosio::contract("aiyunji.mall")]] global2_t {
     uint128_t last_platform_top_reward_id       = 0;    //user_t idx id
     uint64_t last_certification_reward_step     = 0;
 
-    uint128_t last_cache_update_useridx;
+    uint128_t last_cache_update_useridx         = 0;
     uint128_t last_cache_update_shopidx         = 0;
     uint128_t last_cache_update_spendingidx     = 0;
 
     time_point_sec last_shops_rewarded_at;
     time_point_sec last_certification_rewarded_at;
     time_point_sec last_platform_reward_finished_at;
-    time_point_sec last_executed_at;
 
     global2_t() {}
 
-    EOSLIB_SERIALIZE(global2_t, (last_reward_shop_id)(last_sunshine_reward_spending_id)(last_platform_top_reward_step)(last_platform_top_reward_id)
+    EOSLIB_SERIALIZE(global2_t, (last_reward_shop_id)(last_sunshine_reward_spending_id)
+                                (last_platform_top_reward_step)(last_platform_top_reward_id)(last_certification_reward_step)
+                                (last_cache_update_useridx)(last_cache_update_shopidx)(last_cache_update_spendingidx)
                                 (last_shops_rewarded_at)(last_certification_rewarded_at)(last_platform_reward_finished_at) )
                                 
 };
@@ -118,10 +119,8 @@ typedef eosio::singleton< "global2"_n, global2_t > global2_singleton;
 struct CONTRACT_TBL citycenter_t {
     uint64_t id;    //PK
     string cc_name;
-    name cc_account;
-    asset share = asset(0, HST_SYMBOL);
+    name admin;
     time_point_sec created_at;
-    time_point_sec updated_at;
 
     citycenter_t() {}
     citycenter_t(const uint64_t& ccid): id(ccid) {}
@@ -131,7 +130,7 @@ struct CONTRACT_TBL citycenter_t {
 
     typedef eosio::multi_index<"citycenter"_n, citycenter_t> tbl_t;
 
-    EOSLIB_SERIALIZE( citycenter_t, (id)(cc_name)(cc_account)(share)(created_at)(updated_at) )
+    EOSLIB_SERIALIZE( citycenter_t, (id)(cc_name)(admin)(created_at) )
 };
 
 struct user_share_t {
@@ -159,6 +158,7 @@ struct CONTRACT_TBL user_t {
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return account.value; }
 
+    ///to derive platform top 1000
     uint128_t by_total_share() const {
         auto total = share_cache.total_share();
         return (uint128_t (std::numeric_limits<uint64_t>::max() - total.amount)) << 64 | account.value; 
@@ -263,16 +263,17 @@ struct CONTRACT_TBL spending_t {
 
     ///to ensure uniquness
     uint128_t shop_customer_key() const { return ((uint128_t) shop_id) << 64 | customer.value; }
-    ///to derive platform top 1000, across shops
-    uint128_t by_total_spending() const { return (uint128_t (std::numeric_limits<uint64_t>::max() - share_cache.total_spending.amount)) << 64 | id; }
-    ///to derive shop top 10 and all
+    // ///to derive platform top 1000, across shops
+    // uint128_t by_total_spending() const { return (uint128_t (std::numeric_limits<uint64_t>::max() - share_cache.total_spending.amount)) << 64 | id; }
+ 
+    // ///to derive shop top 10 and all
     uint256_t by_shop_day_spending() const  { return uint256_t::make_from_word_sequence<uint64_t>(shop_id, std::numeric_limits<uint64_t>::max() - share_cache.day_spending.amount, id, 0ULL); }
     uint128_t by_cache_update() const { return (uint128_t) share_cache_updated ? 1 : 0 | id; }
 
     typedef eosio::multi_index
     < "spends"_n, spending_t,
         indexed_by<"shopcustidx"_n, const_mem_fun<spending_t, uint128_t, &spending_t::shop_customer_key>    >,
-        indexed_by<"spendidx"_n,    const_mem_fun<spending_t, uint128_t, &spending_t::by_total_spending>    >,
+        // indexed_by<"spendidx"_n,    const_mem_fun<spending_t, uint128_t, &spending_t::by_total_spending>    >,
         indexed_by<"shopspends"_n,  const_mem_fun<spending_t, uint256_t, &spending_t::by_shop_day_spending> >,
         indexed_by<"cacheupdt"_n,   const_mem_fun<spending_t, uint128_t, &spending_t::by_cache_update>      >
     > tbl_t;

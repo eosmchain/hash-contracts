@@ -5,7 +5,7 @@
 
 namespace ayj {
 
-inline bool ayj_mall::is_today(const time_point_sec& time) {
+inline bool ayj_mall::_is_today(const time_point_sec& time) {
 	return time.sec_since_epoch() % seconds_per_day == current_time_point().sec_since_epoch() % seconds_per_day;
 }
 
@@ -68,8 +68,8 @@ inline void ayj_mall::credit_customer(const asset& total, user_t& customer, cons
 		});
 	}
 	
-	customer.share.spending_share 			+= share0;
-	customer.updated_at 					= now;
+	customer.share.spending_share 		+= share0;
+	customer.updated_at 				= now;
 	update_share_cache(customer);
 	_dbc.set( customer );
 }
@@ -139,12 +139,10 @@ inline void ayj_mall::credit_referrer(const asset& total, const user_t& user, co
 inline void ayj_mall::credit_citycenter(const asset& total, const uint64_t& cc_id) {
 	citycenter_t cc(cc_id);
 	CHECK( _dbc.get(cc), "Err: citycenter not found: " + to_string(cc_id) )
-	if (cc.share.amount == 0) 
-		cc.share.symbol = HST_SYMBOL;
 
 	auto share7 						= total * _cstate.allocation_ratios[7] / ratio_boost; 
-	cc.share 							+= share7; //citycenter:	3%
-	_dbc.set( cc );
+	auto to = is_account(cc.admin) ? cc.admin : _cstate.platform_fee_collector;
+	TRANSFER( _cstate.mall_bank, to, share7, "cc reward" )
 }
 
 inline void ayj_mall::credit_ramusage(const asset& total) {
@@ -190,9 +188,8 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 
 	auto now				= time_point_sec( current_time_point() );
 	auto total				= quantity;
-	auto remaining			= total;
 	
-	credit_customer				( total, user, shop_id, now );
+	credit_customer			( total, user, shop_id, now );
 	credit_shop				( total, shop, now );
 	credit_platform_top		( total );
 	credit_certified		( total );
@@ -255,7 +252,7 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner_account, con
 	_dbc.set( shop );
 }
 
-ACTION ayj_mall::registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& cc_account) {
+ACTION ayj_mall::registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& admin) {
 	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
 	require_auth( issuer );
 
@@ -267,8 +264,7 @@ ACTION ayj_mall::registercc(const name& issuer, const uint64_t cc_id, const stri
 		cc.created_at = now;
 
 	cc.cc_name = cc_name;
-	cc.cc_account = cc_account;
-	cc.updated_at = now;
+	cc.admin = admin;
 
 	_dbc.set( cc );
 }
@@ -318,23 +314,90 @@ ACTION ayj_mall::init() {
 */
 }
 
-ACTION ayj_mall::execute() {
-	auto now = current_time_point();
-	auto last_executed_at = _gstate2.last_executed_at.sec_since_epoch();
-	CHECK( now.sec_since_epoch() > last_executed_at + seconds_per_halfday, "too early to execute: < 12 hours" )
-	
-	if (!_gstate.executing) {
-		if (!update_all_caches()) return;
+inline void ayj_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
+	CHECK( current_time_point().sec_since_epoch() > last_rewarded_at.sec_since_epoch() + seconds_per_halfday, "too early to reward: < 12 hours" )
+	CHECK( !_is_today(last_rewarded_at), "done" ) //check if the particular category is rewarded
+}
 
-		_gstate.executing = true;
+/**
+ * Usage: to reward shop spending for all shops
+ */
+ACTION ayj_mall::rewardshops() {
+	_check_rewarded( _gstate2.last_shops_rewarded_at );
+
+	shop_t::tbl_t shops(_self, _self.value);
+	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
+	for (uint8_t step = 0; itr != shops.end() && step < MAX_STEP; itr++, step++) {
+		if (!_reward_shop(itr->id)) return; // shop not finished, needs to re-enter in next round of this
+
+		_gstate2.last_reward_shop_id = itr->id;			
 	}
 
-	if (!reward_shops()) 		return;
-	if (!reward_certified()) 	return;
-	if (!reward_platform_top()) return;
+	if (itr == shops.end()) {
+		_gstate2.last_reward_shop_id = 0;
+		_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
+		_gstate.executing = false;
+		return;
+	}
 
-	_gstate.executing = false; //execute completed
-	_gstate2.last_executed_at = now;
+	check(false, "done");
+}
+
+/**
+ * Usage: to reward newly certified users
+ */
+ACTION ayj_mall::rewardcerts() {
+	_check_rewarded( _gstate2.last_certification_rewarded_at );
+
+	CHECK( _gstate.platform_share_cache.certified_user_count > 0, "Err: certified user count is zero" )
+	auto quant = _gstate.platform_share_cache.certified_user_share / _gstate.platform_share_cache.certified_user_count;
+	certification_t::tbl_t certifications(_self, _self.value);
+	auto itr = certifications.begin();
+	uint8_t step = 0;
+	for (; itr != certifications.end() && step < MAX_STEP; step++) {
+		TRANSFER( _cstate.mall_bank, itr->user, quant, "cert reward" )
+
+		itr = certifications.erase(itr); //remove it after rewarding
+		_gstate2.last_certification_reward_step++;
+	}
+
+	if (itr == certifications.end() || step == _gstate.platform_share_cache.certified_user_count) {
+		_gstate.platform_share.certified_user_count = 0;
+		_gstate2.last_certification_reward_step = 0;
+		_gstate2.last_certification_rewarded_at = time_point_sec( current_time_point() );
+		return;
+	}
+
+	CHECK( false, "done" );
+}
+
+/**
+ *  Usage: to reward platform top 1000
+ */
+ACTION ayj_mall::rewardptops() {
+	_check_rewarded( _gstate2.last_platform_reward_finished_at );
+
+	user_t::tbl_t users(_self, _self.value);
+	auto user_idx = users.get_index<"totalshare"_n>();
+	auto itr = user_idx.upper_bound(_gstate2.last_platform_top_reward_id);
+	auto quant_avg = _gstate.platform_share_cache.top_share / _cstate.platform_top_count;
+
+	for (uint8_t step = 0; itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
+		if (_gstate2.last_platform_top_reward_step++ == _cstate.platform_top_count) break; // top-1000 reward
+
+		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
+
+		_gstate2.last_platform_top_reward_id = itr->by_total_share();
+	}
+
+	if (itr == user_idx.end() || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
+		_gstate2.last_platform_top_reward_step 		= 0;
+		_gstate2.last_platform_top_reward_id		= 0;
+		_gstate2.last_platform_reward_finished_at 	= time_point_sec( current_time_point() );
+		return;
+	}
+
+	CHECK( false, "done" );
 }
 
 /**
@@ -364,11 +427,11 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 		auto idx = spends.get_index<"shopcustidx"_n>();
 		auto itr = idx.lower_bound( (uint128_t) shop_id << 64 | to.value );
 		CHECK( itr != idx.end(), "customer: " + to.to_string() + " @ shop: " + to_string(shop_id) + " not found" )
-		// CHECK( user.share_cache.spending_reward >= itr->share_cache.total_spending, "Err: user.share_cache.spending_reward: " 
-		// 			+ user.share_cache.spending_reward.to_string() + " < itr->share_cache.total_spending: " 
-		// 			+ itr->share_cache.total_spending.to_string() + " than one shop total spending" )
-
 		auto quant = itr->share_cache.total_spending;
+		CHECK( user.share_cache.spending_share >= quant, "Err: user.share_cache.spending_reward: " 
+					+ user.share_cache.spending_share.to_string() + " < itr->share_cache.total_spending: " 
+					+ itr->share_cache.total_spending.to_string() )
+
 		CHECK( _gstate.platform_share.total_share >= quant, "platform total share insufficient to withdraw" )
 		_gstate.platform_share.total_share -= quant;
 		update_share_cache();
@@ -377,7 +440,7 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 		update_share_cache( user );
 
 		_dbc.set( user );
-		idx.erase(itr);
+		idx.erase(itr);	//remove share from spends share pool
 
 		asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
 		CHECK( platform_fees < quant, "Err: withdrawl fees oversized!" )
@@ -418,10 +481,10 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 	}
 }
 
-bool ayj_mall::reward_shop(const uint64_t& shop_id) {
+bool ayj_mall::_reward_shop(const uint64_t& shop_id) {
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	CHECK( !is_today(shop.updated_at), "shop sunshine reward already executed" )
+	CHECK( !_is_today(shop.updated_at), "shop sunshine reward already executed" )
 
 	if (shop.top_rewarded_count == 0) {
 		shop.share_cache = shop.share;
@@ -463,111 +526,41 @@ bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 	return false;
 }
 
-bool ayj_mall::reward_shops() {
-	if ( is_today(_gstate2.last_shops_rewarded_at) ) return true;
+// bool ayj_mall::update_all_caches() {
 
-	shop_t::tbl_t shops(_self, _self.value);
-	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
-	for (uint8_t step = 0; itr != shops.end() && step < MAX_STEP; itr++, step++) {
-		if (!reward_shop(itr->id)) return false;
+// 	update_share_cache(); // platform share cache
 
-		_gstate2.last_reward_shop_id = itr->id;			
-	}
+// 	user_t::tbl_t users(_self, _self.value);
+// 	auto user_idx = users.get_index<"cacheupdt"_n>();
+// 	auto user_itr = user_idx.upper_bound(_gstate2.last_cache_update_useridx);
+// 	for (auto step = 0; user_itr != user_idx.end() && step < MAX_STEP; user_itr++, step++) {
+// 		user_t user(user_itr->account);
+// 		CHECK( _dbc.get(user), "Err: user not found: " + user_itr->account.to_string() )
+// 		update_share_cache(user);
+// 	}
+// 	if (user_itr != user_idx.end() && !user_itr->share_cache_updated) return false;
 
-	if (itr == shops.end()) {
-		_gstate2.last_reward_shop_id = 0;
-		_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
-		return true;
-	}
+// 	shop_t::tbl_t shops(_self, _self.value);
+// 	auto shop_idx = shops.get_index<"cacheupdt"_n>();
+// 	auto shop_itr = shop_idx.upper_bound(_gstate2.last_cache_update_shopidx);
+// 	for (auto step = 0; shop_itr != shop_idx.end() && step < MAX_STEP; shop_itr++, step++) {
+// 		shop_t shop(shop_itr->id);
+// 		CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_itr->id) )
+// 		update_share_cache(shop);
+// 	}
+// 	if (shop_itr != shop_idx.end() && !shop_itr->share_cache_updated) return false;
 
-	return false;
-}
+// 	spending_t::tbl_t spends(_self, _self.value);
+// 	auto spend_idx = spends.get_index<"cacheupdt"_n>();
+// 	auto spend_itr = spend_idx.upper_bound(_gstate2.last_cache_update_spendingidx);
+// 	for (auto step = 0; spend_itr != spend_idx.end() && step < MAX_STEP; spend_itr++, step++) {
+// 		spending_t spend(spend_itr->id);
+// 		CHECK( _dbc.get(spend), "Err: spend not found: " + to_string(spend_itr->id) )
+// 		update_share_cache(spend);
+// 	}
+// 	if (spend_itr != spend_idx.end() && !spend_itr->share_cache_updated) return false;
 
-bool ayj_mall::reward_certified() {
-	if ( is_today(_gstate2.last_certification_rewarded_at) ) return true;
-
-	auto quant = _gstate.platform_share_cache.certified_user_share / _gstate.platform_share_cache.certified_user_count;
-	certification_t::tbl_t certifications(_self, _self.value);
-	auto itr = certifications.begin();
-	uint8_t step = 0;
-	for (; itr != certifications.end() && step < MAX_STEP; step++) {
-		TRANSFER( _cstate.mall_bank, itr->user, quant, "cert reward" )
-
-		itr = certifications.erase(itr);
-		_gstate2.last_certification_reward_step++;
-	}
-
-	if (itr == certifications.end() || step == _gstate.platform_share_cache.certified_user_count) {
-		_gstate.platform_share.certified_user_count = 0;
-		_gstate2.last_certification_reward_step = 0;
-		_gstate2.last_certification_rewarded_at = time_point_sec( current_time_point() );
-		return true;
-	}
-
-	return false;
-}
-
-bool ayj_mall::reward_platform_top() {
-	if ( is_today(_gstate2.last_platform_reward_finished_at) ) return true;
-
-	user_t::tbl_t users(_self, _self.value);
-	auto user_idx = users.get_index<"totalshare"_n>();
-	auto itr = user_idx.upper_bound(_gstate2.last_platform_top_reward_id);
-	auto quant_avg = _gstate.platform_share_cache.top_share / _cstate.platform_top_count;
-
-	for (uint8_t step = 0; itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
-		if (_gstate2.last_platform_top_reward_step++ == _cstate.platform_top_count) break; // top-1000 reward
-
-		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
-
-		_gstate2.last_platform_top_reward_id = itr->by_total_share();
-	}
-
-	if (itr == user_idx.end() || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
-		_gstate2.last_platform_top_reward_step 		= 0;
-		_gstate2.last_platform_top_reward_id		= 0;
-		_gstate2.last_platform_reward_finished_at 	= time_point_sec( current_time_point() );
-		return true;
-	}
-
-	return false;
-}
-
-bool ayj_mall::update_all_caches() {
-
-	update_share_cache(); // platform share cache
-
-	user_t::tbl_t users(_self, _self.value);
-	auto user_idx = users.get_index<"cacheupdt"_n>();
-	auto user_itr = user_idx.upper_bound(_gstate2.last_cache_update_useridx);
-	for (auto step = 0; user_itr != user_idx.end() && step < MAX_STEP; user_itr++, step++) {
-		user_t user(user_itr->account);
-		CHECK( _dbc.get(user), "Err: user not found: " + user_itr->account.to_string() )
-		update_share_cache(user);
-	}
-	if (user_itr != user_idx.end() && !user_itr->share_cache_updated) return false;
-
-	shop_t::tbl_t shops(_self, _self.value);
-	auto shop_idx = shops.get_index<"cacheupdt"_n>();
-	auto shop_itr = shop_idx.upper_bound(_gstate2.last_cache_update_shopidx);
-	for (auto step = 0; shop_itr != shop_idx.end() && step < MAX_STEP; shop_itr++, step++) {
-		shop_t shop(shop_itr->id);
-		CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_itr->id) )
-		update_share_cache(shop);
-	}
-	if (shop_itr != shop_idx.end() && !shop_itr->share_cache_updated) return false;
-
-	spending_t::tbl_t spends(_self, _self.value);
-	auto spend_idx = spends.get_index<"cacheupdt"_n>();
-	auto spend_itr = spend_idx.upper_bound(_gstate2.last_cache_update_spendingidx);
-	for (auto step = 0; spend_itr != spend_idx.end() && step < MAX_STEP; spend_itr++, step++) {
-		spending_t spend(spend_itr->id);
-		CHECK( _dbc.get(spend), "Err: spend not found: " + to_string(spend_itr->id) )
-		update_share_cache(spend);
-	}
-	if (spend_itr != spend_idx.end() && !spend_itr->share_cache_updated) return false;
-
-	return true;
-}
+// 	return true;
+// }
 
 } /// namespace ayj

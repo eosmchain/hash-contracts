@@ -5,7 +5,7 @@
 
 namespace ayj {
 
-inline bool ayj_mall::is_today(const time_point_sec& time) {
+inline bool ayj_mall::_is_today(const time_point_sec& time) {
 	return time.sec_since_epoch() % seconds_per_day == current_time_point().sec_since_epoch() % seconds_per_day;
 }
 
@@ -264,7 +264,7 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner_account, con
 	_dbc.set( shop );
 }
 
-ACTION ayj_mall::registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& cc_account) {
+ACTION ayj_mall::registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& admin) {
 	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
 	require_auth( issuer );
 
@@ -276,7 +276,7 @@ ACTION ayj_mall::registercc(const name& issuer, const uint64_t cc_id, const stri
 		cc.created_at = now;
 
 	cc.cc_name = cc_name;
-	cc.cc_account = cc_account;
+	cc.admin = admin;
 	cc.updated_at = now;
 
 	_dbc.set( cc );
@@ -325,25 +325,6 @@ ACTION ayj_mall::init() {
 	}
 	check( found, "finished!" );
 */
-}
-
-ACTION ayj_mall::execute() {
-	auto now = current_time_point();
-	auto last_executed_at = _gstate2.last_executed_at.sec_since_epoch();
-	CHECK( now.sec_since_epoch() > last_executed_at + seconds_per_halfday, "too early to execute: < 12 hours" )
-	
-	if (!_gstate.executing) {
-		if (!update_all_caches()) return;
-
-		_gstate.executing = true;
-	}
-
-	if (!reward_shops()) 		return;
-	if (!reward_certified()) 	return;
-	if (!reward_platform_top()) return;
-
-	_gstate.executing = false; //execute completed
-	_gstate2.last_executed_at = now;
 }
 
 /**
@@ -426,7 +407,7 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	CHECK( !is_today(shop.updated_at), "shop sunshine reward already executed" )
+	CHECK( !_is_today(shop.updated_at), "shop sunshine reward already executed" )
 
 	if (shop.top_rewarded_count == 0) {
 		shop.share_cache = shop.share;
@@ -469,7 +450,7 @@ bool ayj_mall::reward_shop(const uint64_t& shop_id) {
 }
 
 bool ayj_mall::reward_shops() {
-	if ( is_today(_gstate2.last_shops_rewarded_at) ) return true;
+	if ( _is_today(_gstate2.last_shops_rewarded_at) ) return true;
 
 	shop_t::tbl_t shops(_self, _self.value);
 	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
@@ -489,7 +470,7 @@ bool ayj_mall::reward_shops() {
 }
 
 bool ayj_mall::reward_certified() {
-	if ( is_today(_gstate2.last_certification_rewarded_at) ) return true;
+	if ( _is_today(_gstate2.last_certification_rewarded_at) ) return true;
 
 	auto quant = _gstate.platform_share_cache.certified_user_share / _gstate.platform_share_cache.certified_user_count;
 	certification_t::tbl_t certifications(_self, _self.value);
@@ -513,7 +494,7 @@ bool ayj_mall::reward_certified() {
 }
 
 bool ayj_mall::reward_platform_top() {
-	if ( is_today(_gstate2.last_platform_reward_finished_at) ) return true;
+	if ( _is_today(_gstate2.last_platform_reward_finished_at) ) return true;
 
 	user_t::tbl_t users(_self, _self.value);
 	auto user_idx = users.get_index<"totalrewards"_n>();

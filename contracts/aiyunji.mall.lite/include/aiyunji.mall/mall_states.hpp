@@ -81,14 +81,13 @@ struct platform_share_t {
 };
 
 struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
-    bool executing = false;
     platform_share_t platform_share;
     platform_share_t platform_share_cache; //cached in executing
-    bool share_cache_updated = false;
+    time_point_sec cache_synced_at;
 
     global_t() {}
 
-    EOSLIB_SERIALIZE(global_t,  (executing)(platform_share)(platform_share_cache)(share_cache_updated) )
+    EOSLIB_SERIALIZE(global_t,  (platform_share)(platform_share_cache)(cache_synced_at) )
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
@@ -99,18 +98,19 @@ struct [[eosio::table("global2"), eosio::contract("aiyunji.mall")]] global2_t {
     uint128_t last_platform_top_reward_id       = 0;    //user_t idx id
     uint64_t last_certification_reward_step     = 0;
 
-    uint128_t last_cache_update_useridx;
+    uint128_t last_cache_update_useridx         = 0;
     uint128_t last_cache_update_shopidx         = 0;
     uint128_t last_cache_update_spendingidx     = 0;
 
     time_point_sec last_shops_rewarded_at;
     time_point_sec last_certification_rewarded_at;
     time_point_sec last_platform_reward_finished_at;
-    time_point_sec last_executed_at;
 
     global2_t() {}
 
-    EOSLIB_SERIALIZE(global2_t, (last_reward_shop_id)(last_sunshine_reward_spending_id)(last_platform_top_reward_step)(last_platform_top_reward_id)
+    EOSLIB_SERIALIZE(global2_t, (last_reward_shop_id)(last_sunshine_reward_spending_id)(last_platform_top_reward_step)
+                                (last_platform_top_reward_id)(last_certification_reward_step)
+                                (last_cache_update_useridx)(last_cache_update_shopidx)(last_cache_update_spendingidx)
                                 (last_shops_rewarded_at)(last_certification_rewarded_at)(last_platform_reward_finished_at) )
                                 
 };
@@ -119,7 +119,7 @@ typedef eosio::singleton< "global2"_n, global2_t > global2_singleton;
 struct CONTRACT_TBL citycenter_t {
     uint64_t id;    //PK
     string cc_name;
-    name cc_account;
+    name admin;
     asset share = asset(0, HST_SYMBOL);
     time_point_sec created_at;
     time_point_sec updated_at;
@@ -132,7 +132,7 @@ struct CONTRACT_TBL citycenter_t {
 
     typedef eosio::multi_index<"citycenter"_n, citycenter_t> tbl_t;
 
-    EOSLIB_SERIALIZE( citycenter_t, (id)(cc_name)(cc_account)(share)(created_at)(updated_at) )
+    EOSLIB_SERIALIZE( citycenter_t, (id)(cc_name)(admin)(share)(created_at)(updated_at) )
 };
 
 struct user_share_t {
@@ -150,9 +150,8 @@ struct CONTRACT_TBL user_t {
     name referral_account;
     user_share_t share;
     user_share_t share_cache;
-    bool share_cache_updated = false;
+    time_point_sec cache_synced_at;
     time_point_sec created_at;
-    time_point_sec updated_at;
 
     user_t(){}
     user_t(const name& a): account(a) {}
@@ -172,8 +171,8 @@ struct CONTRACT_TBL user_t {
         indexed_by<"cacheupdt"_n,    const_mem_fun<user_t, uint128_t, &user_t::by_cache_update>  >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( user_t,   (account)(referral_account)(share)(share_cache)(share_cache_updated)
-                                (created_at)(updated_at) )
+    EOSLIB_SERIALIZE( user_t,   (account)(referral_account)(share)(share_cache)
+                                (cache_synced_at)(created_at) )
 };
 
 struct shop_share_t {
@@ -218,9 +217,8 @@ struct CONTRACT_TBL shop_t {
     spend_index_t last_top_reward_spend_idx; //spending_t::id
     shop_share_t share;
     shop_share_t share_cache;
-    bool share_cache_updated = false;
+    time_point_sec cache_synced_at;
     time_point_sec created_at;
-    time_point_sec updated_at;
 
     shop_t() {}
     shop_t(const uint64_t& i): id(i) {}
@@ -239,7 +237,7 @@ struct CONTRACT_TBL shop_t {
 
     EOSLIB_SERIALIZE( shop_t,   (id)(pid)(cc_id)(shop_name)(owner_account)(referral_account)(received_payment)
                                 (top_reward_count)(top_rewarded_count)(last_sunshine_reward_spend_idx)(last_top_reward_spend_idx)
-                                (share)(share_cache)(share_cache_updated)(created_at)(updated_at) )
+                                (share)(share_cache)(cache_synced_at)(created_at) )
 };
 
 struct spending_share_t {

@@ -61,7 +61,7 @@ namespace ayj {
          void registershop(const name& issuer, const name& owner_account, const string& shop_name, const uint64_t& cc_id, const uint64_t& parent_shop_id, const uint64_t& shop_id);
 
          [[eosio::action]]
-         void registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& cc_account);
+         void registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& admin);
    
          [[eosio::action]]
          void certifyuser(const name& issuer, const name& user);
@@ -109,7 +109,7 @@ namespace ayj {
          inline void update_share_cache(shop_t& shop);
          inline void update_share_cache(spending_t& spend);
 
-         inline bool is_today(const time_point_sec& time);
+         inline bool _is_today(const time_point_sec& time);
    };
 
 }
