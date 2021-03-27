@@ -265,7 +265,10 @@ struct CONTRACT_TBL spending_t {
     uint128_t shop_customer_key() const { return ((uint128_t) shop_id) << 64 | customer.value; }
     // ///to derive platform top 1000, across shops
     // uint128_t by_total_spending() const { return (uint128_t (std::numeric_limits<uint64_t>::max() - share_cache.total_spending.amount)) << 64 | id; }
- 
+    
+    ///to get spending records of a particular customer
+    uint64_t by_customer_key() const { return customer.value; }
+
     // ///to derive shop top 10 and all
     uint256_t by_shop_day_spending() const  { return uint256_t::make_from_word_sequence<uint64_t>(shop_id, std::numeric_limits<uint64_t>::max() - share_cache.day_spending.amount, id, 0ULL); }
     uint128_t by_cache_update() const { return (uint128_t) share_cache_updated ? 1 : 0 | id; }
@@ -274,6 +277,7 @@ struct CONTRACT_TBL spending_t {
     < "spends"_n, spending_t,
         indexed_by<"shopcustidx"_n, const_mem_fun<spending_t, uint128_t, &spending_t::shop_customer_key>    >,
         // indexed_by<"spendidx"_n,    const_mem_fun<spending_t, uint128_t, &spending_t::by_total_spending>    >,
+        indexed_by<"custidx"_n,     const_mem_fun<spending_t, uint64_t,  &spending_t::by_customer_key>      >,
         indexed_by<"shopspends"_n,  const_mem_fun<spending_t, uint256_t, &spending_t::by_shop_day_spending> >,
         indexed_by<"cacheupdt"_n,   const_mem_fun<spending_t, uint128_t, &spending_t::by_cache_update>      >
     > tbl_t;
