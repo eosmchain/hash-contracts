@@ -226,7 +226,7 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner_account, con
 	CHECK( shop_name.size() < 128, "shop name too long: " + to_string(shop_name.size()) )
 
 	user_t user(owner_account);
-	CHECK( _dbc.get(user), "user not found: " + owner_account.to_string() )
+	CHECK( _dbc.get(user), "user not registered: " + owner_account.to_string() )
 	auto shop_referrer = user.referral_account;
 	if (!shop_referrer)
 		shop_referrer = _cstate.platform_referrer;
