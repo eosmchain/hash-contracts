@@ -266,7 +266,7 @@ struct CONTRACT_TBL spending_t {
     uint64_t by_customer_key() const { return customer.value; }
     ///to derive platform top 1000, across shops
     uint128_t by_total_spending() const { return (uint128_t (std::numeric_limits<uint64_t>::max() - share_cache.total_spending.amount)) << 64 | id; }
-    ///to derive shop top 10 and all
+    ///to derive shop top 5 and all
     uint256_t by_shop_day_spending() const  { return uint256_t::make_from_word_sequence<uint64_t>(shop_id, std::numeric_limits<uint64_t>::max() - share_cache.day_spending.amount, id, 0ULL); }
     uint128_t by_cache_update() const { return (uint128_t) share_cache_updated ? 1 : 0 | id; }
 

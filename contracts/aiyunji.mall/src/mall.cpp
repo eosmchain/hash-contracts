@@ -157,7 +157,7 @@ inline void ayj_mall::credit_ramusage(const asset& total) {
  *  @to: 		mall contract or self
  *  @quantity:	amount issued and transferred
  *  @memo: 		format-1: "<user_account>@<shop_id>"
- *              format-2: "burn"
+ *              format-2: "burn@<external_serial_no>"
  * 		
  */
 void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
@@ -169,15 +169,16 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
 	CHECK( quantity.amount > 0, "ontransfer quanity must be positive" )
 
-	if (memo == "burn") {
+	vector<string_view> params = split(memo, "@");	
+	CHECK( params.size() == 2, "memo must be of <burn|user_account>@<shop_id>" )
+
+	auto act = std::string(params[0]);
+	if (act == "burn") {
 		BURN( _cstate.mall_bank, _self, quantity, "burn" )
 		return;
 	}
-
-	vector<string_view> params = split(memo, "@");	
-	CHECK( params.size() == 2, "memo must be of <user_account>@<shop_id>" )
-
-	auto user_acct 			= name(std::string(params[0]));
+	
+	auto user_acct 			= name(act);
 	CHECK( is_account(user_acct), "user account not valid: " + std::string(params[0]) )
 	user_t user(user_acct);
 	CHECK( _dbc.get( user ), "user not registered: " + user_acct.to_string() );
