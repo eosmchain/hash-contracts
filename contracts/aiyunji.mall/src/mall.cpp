@@ -170,7 +170,7 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	CHECK( quantity.amount > 0, "ontransfer quanity must be positive" )
 
 	vector<string_view> params = split(memo, "@");	
-	CHECK( params.size() == 2, "memo must be of <burn|user_account>@<shop_id>" )
+	CHECK( params.size() == 2, "memo must be of <burn|user_account>@<shop_id>|<sn>" )
 
 	auto act = std::string(params[0]);
 	if (act == "burn") {
