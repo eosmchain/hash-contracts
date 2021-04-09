@@ -276,7 +276,6 @@ struct CONTRACT_TBL spending_t {
     typedef eosio::multi_index
     < "spends"_n, spending_t,
         indexed_by<"shopcustidx"_n, const_mem_fun<spending_t, uint128_t, &spending_t::shop_customer_key>    >,
-        // indexed_by<"spendidx"_n,    const_mem_fun<spending_t, uint128_t, &spending_t::by_total_spending>    >,
         indexed_by<"custidx"_n,     const_mem_fun<spending_t, uint64_t,  &spending_t::by_customer_key>      >,
         indexed_by<"shopspends"_n,  const_mem_fun<spending_t, uint256_t, &spending_t::by_shop_day_spending> >,
         indexed_by<"cacheupdt"_n,   const_mem_fun<spending_t, uint128_t, &spending_t::by_cache_update>      >
