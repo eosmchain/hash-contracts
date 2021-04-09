@@ -168,7 +168,7 @@ void hst_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	CHECK( quantity.is_valid(), "Invalid quantity" )
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
 	CHECK( quantity.amount > 0, "ontransfer quanity must be positive" )
-	CHECK( get_first_receiver() == SYS_BANK, "must transfer by SYS_BANK: " + SYS_BANK.to_string() )
+	CHECK( get_first_receiver() == HST_BANK, "must transfer by HST_BANK: " + HST_BANK.to_string() )
 
 	vector<string_view> params = split(memo, "@");	
 	CHECK( params.size() == 2, "memo must be of <burn|user_account>@<shop_id>|<sn>" )

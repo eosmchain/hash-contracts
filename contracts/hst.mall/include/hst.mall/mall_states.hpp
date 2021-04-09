@@ -19,6 +19,7 @@ using uint256_t = fixed_bytes<32>;
 
 static constexpr eosio::name active_perm{"active"_n};
 static constexpr eosio::name SYS_BANK{"eosio.token"_n};
+static constexpr eosio::name HST_BANK{"hst.token"_n};
 
 static constexpr symbol   SYS_SYMBOL            = symbol(symbol_code("MGP"), 4);
 static constexpr symbol   HST_SYMBOL            = symbol(symbol_code("HST"), 4);
