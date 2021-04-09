@@ -1,21 +1,21 @@
-#include <aiyunji.mall/mall.hpp>
-#include <aiyunji.mall/utils.hpp>
-#include <aiyunji.mall/math.hpp>
+#include <hst.mall/mall.hpp>
+#include <hst.mall/utils.hpp>
+#include <hst.mall/math.hpp>
 #include <eosio.token/eosio.token.hpp>
 
-namespace ayj {
+namespace hst {
 
-inline bool ayj_mall::_is_today(const time_point_sec& time) {
+inline bool hst_mall::_is_today(const time_point_sec& time) {
 	return time.sec_since_epoch() % seconds_per_day == current_time_point().sec_since_epoch() % seconds_per_day;
 }
 
 ///platform share cache
-inline void ayj_mall::update_share_cache() {
+inline void hst_mall::update_share_cache() {
 	if (!_gstate.executing) _gstate.platform_share_cache = _gstate.platform_share;
 	_gstate.share_cache_updated = !_gstate.executing;
 }
 ///user share cache
-inline void ayj_mall::update_share_cache(user_t& user) {
+inline void hst_mall::update_share_cache(user_t& user) {
 	if (!_gstate.executing) {
 		user.share_cache = user.share;
 		_gstate2.last_cache_update_useridx = user.by_cache_update();
@@ -23,7 +23,7 @@ inline void ayj_mall::update_share_cache(user_t& user) {
 	user.share_cache_updated 	= !_gstate.executing;
 }
 ///shop share cache
-inline void ayj_mall::update_share_cache(shop_t& shop) {
+inline void hst_mall::update_share_cache(shop_t& shop) {
 	if (!_gstate.executing) {
 		shop.share_cache = shop.share;
 		_gstate2.last_cache_update_shopidx = shop.by_cache_update();
@@ -31,7 +31,7 @@ inline void ayj_mall::update_share_cache(shop_t& shop) {
 	shop.share_cache_updated 	= !_gstate.executing;
 }
 ///spend share cache
-inline void ayj_mall::update_share_cache(spending_t& spend) {
+inline void hst_mall::update_share_cache(spending_t& spend) {
 	if (!_gstate.executing) {
 		spend.share_cache = spend.share;
 		_gstate2.last_cache_update_spendingidx = spend.by_cache_update();
@@ -40,7 +40,7 @@ inline void ayj_mall::update_share_cache(spending_t& spend) {
 }
 
 //  total, remaining, customer, shop_id, now 
-inline void ayj_mall::credit_customer(const asset& total, user_t& customer, const uint64_t& shop_id, const time_point_sec& now) {
+inline void hst_mall::credit_customer(const asset& total, user_t& customer, const uint64_t& shop_id, const time_point_sec& now) {
 	auto share0 						= total * _cstate.allocation_ratios[0] / ratio_boost; 
 	_gstate.platform_share.total_share 	+= total;	//TODO: check its usage
 	
@@ -75,7 +75,7 @@ inline void ayj_mall::credit_customer(const asset& total, user_t& customer, cons
 }
 
 // remaining, shop, now
-inline void ayj_mall::credit_shop(const asset& total, shop_t& shop, const time_point_sec& now) {
+inline void hst_mall::credit_shop(const asset& total, shop_t& shop, const time_point_sec& now) {
 	auto share1							= total * _cstate.allocation_ratios[1] / ratio_boost; 
 	auto share2							= total * _cstate.allocation_ratios[2] / ratio_boost; 
 	shop.share.sunshine_share 			+= share1; //shop-all:	15%
@@ -85,19 +85,19 @@ inline void ayj_mall::credit_shop(const asset& total, shop_t& shop, const time_p
 	_dbc.set( shop );
 }
 
-inline void ayj_mall::credit_certified(const asset& total) {
+inline void hst_mall::credit_certified(const asset& total) {
 	auto share3 						= total * _cstate.allocation_ratios[3] / ratio_boost; 
 	_gstate.platform_share.certified_user_share += share3; //certified:	8%
 	update_share_cache();
 }
 
-inline void ayj_mall::credit_platform_top(const asset& total) {
+inline void hst_mall::credit_platform_top(const asset& total) {
 	auto share4 						= total * _cstate.allocation_ratios[4] / ratio_boost; 
 	_gstate.platform_share.top_share 	+= share4; 	//platform-top: 5%
 	update_share_cache();
 }
 
-inline void ayj_mall::credit_referrer(const asset& total, const user_t& user, const shop_t& shop, const time_point_sec& now) {
+inline void hst_mall::credit_referrer(const asset& total, const user_t& user, const shop_t& shop, const time_point_sec& now) {
 	auto share5 = total * _cstate.allocation_ratios[5] / ratio_boost; //direct-referral:	10%
 	auto share6 = total * _cstate.allocation_ratios[6] / ratio_boost; //agent-referral:		5%
 
@@ -136,7 +136,7 @@ inline void ayj_mall::credit_referrer(const asset& total, const user_t& user, co
 }
 
 
-inline void ayj_mall::credit_citycenter(const asset& total, const uint64_t& cc_id) {
+inline void hst_mall::credit_citycenter(const asset& total, const uint64_t& cc_id) {
 	citycenter_t cc(cc_id);
 	CHECK( _dbc.get(cc), "Err: citycenter not found: " + to_string(cc_id) )
 
@@ -145,7 +145,7 @@ inline void ayj_mall::credit_citycenter(const asset& total, const uint64_t& cc_i
 	TRANSFER( _cstate.mall_bank, to, share7, "cc reward" )
 }
 
-inline void ayj_mall::credit_ramusage(const asset& total) {
+inline void hst_mall::credit_ramusage(const asset& total) {
 	auto share8 						= total * _cstate.allocation_ratios[8] / ratio_boost; 
 	_gstate.platform_share.ram_usage_share += share8; //ram-usage:	4%
 }
@@ -160,7 +160,7 @@ inline void ayj_mall::credit_ramusage(const asset& total) {
  *              format-2: "burn@<external_serial_no>"
  * 		
  */
-void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
+void hst_mall::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
 	if (to != _self) return;
 
 	require_auth(from);
@@ -205,7 +205,7 @@ void ayj_mall::ontransfer(const name& from, const name& to, const asset& quantit
  *  @user: the new user to register
  *  @referrer: one who referrs the user onto this platform, if "0" it means empty referrer
  */
-ACTION ayj_mall::registeruser(const name& issuer, const name& user, const name& referrer) {
+ACTION hst_mall::registeruser(const name& issuer, const name& user, const name& referrer) {
 	CHECK( issuer == _cstate.platform_admin, "non-platform admin not allowed" )
 	require_auth( issuer );
 
@@ -221,7 +221,7 @@ ACTION ayj_mall::registeruser(const name& issuer, const name& user, const name& 
 
 }
          
-ACTION ayj_mall::registershop(const name& issuer, const name& owner_account, const string& shop_name, const uint64_t& cc_id, const uint64_t& parent_shop_id, const uint64_t& shop_id) {
+ACTION hst_mall::registershop(const name& issuer, const name& owner_account, const string& shop_name, const uint64_t& cc_id, const uint64_t& parent_shop_id, const uint64_t& shop_id) {
 	CHECK( issuer == _cstate.platform_admin, "non-platform-admin err" )
 	require_auth( issuer );
 
@@ -254,7 +254,7 @@ ACTION ayj_mall::registershop(const name& issuer, const name& owner_account, con
 	_dbc.set( shop );
 }
 
-ACTION ayj_mall::registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& admin) {
+ACTION hst_mall::registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& admin) {
 	CHECK( issuer == _cstate.platform_admin, "non-admin err" )
 	require_auth( issuer );
 
@@ -271,7 +271,7 @@ ACTION ayj_mall::registercc(const name& issuer, const uint64_t cc_id, const stri
 	_dbc.set( cc );
 }
 
-ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
+ACTION hst_mall::certifyuser(const name& issuer, const name& user) {
 	require_auth( issuer );
 	CHECK( issuer == _cstate.platform_admin, "issuer (" + issuer.to_string() + ") not platform admin: " + _cstate.platform_admin.to_string() )
 	CHECK( is_account(user), "user account not valid" )
@@ -285,14 +285,14 @@ ACTION ayj_mall::certifyuser(const name& issuer, const name& user) {
 	_gstate.platform_share.certified_user_count++;
 }
 
-void ayj_mall::_init() {
-	_cstate.mall_bank = "aiyunji.coin"_n;
+void hst_mall::_init() {
+	_cstate.mall_bank = "hst.token"_n;
 	_cstate.platform_fee_collector = "masteraychen"_n;
 	_cstate.platform_admin = "hst.admin"_n;
 	_cstate.platform_referrer = "masteraychen"_n;
 }
 
-ACTION ayj_mall::init() {
+ACTION hst_mall::init() {
 	_init();
 
 	_cstate.withdraw_mature_days = 1;
@@ -316,7 +316,7 @@ ACTION ayj_mall::init() {
 */
 }
 
-inline void ayj_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
+inline void hst_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
 	CHECK( current_time_point().sec_since_epoch() > last_rewarded_at.sec_since_epoch() + seconds_per_halfday, "too early to reward: < 12 hours" )
 	CHECK( !_is_today(last_rewarded_at), "done" ) //check if the particular category is rewarded
 }
@@ -324,7 +324,7 @@ inline void ayj_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
 /**
  * Usage: to reward shop spending for all shops
  */
-ACTION ayj_mall::rewardshops() {
+ACTION hst_mall::rewardshops() {
 	_check_rewarded( _gstate2.last_shops_rewarded_at );
 
 	shop_t::tbl_t shops(_self, _self.value);
@@ -348,7 +348,7 @@ ACTION ayj_mall::rewardshops() {
 /**
  * Usage: to reward newly certified users
  */
-ACTION ayj_mall::rewardcerts() {
+ACTION hst_mall::rewardcerts() {
 	_check_rewarded( _gstate2.last_certification_rewarded_at );
 
 	CHECK( _gstate.platform_share_cache.certified_user_count > 0, "Err: certified user count is zero" )
@@ -376,7 +376,7 @@ ACTION ayj_mall::rewardcerts() {
 /**
  *  Usage: to reward platform top 1000
  */
-ACTION ayj_mall::rewardptops() {
+ACTION hst_mall::rewardptops() {
 	_check_rewarded( _gstate2.last_platform_reward_finished_at );
 
 	user_t::tbl_t users(_self, _self.value);
@@ -411,7 +411,7 @@ ACTION ayj_mall::rewardptops() {
  * @shop_id: the specific shop to withdraw its spending reward when withdraw_type is 0
  *
  */
-ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, const uint64_t& shop_id) {
+ACTION hst_mall::withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, const uint64_t& shop_id) {
 	require_auth( issuer );
 	CHECK( is_account(to), "to account not valid: " + to.to_string() )
 	CHECK( withdraw_type < 3, "withdraw_type not valid: " + to_string(withdraw_type) )
@@ -483,7 +483,7 @@ ACTION ayj_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 	}
 }
 
-bool ayj_mall::_reward_shop(const uint64_t& shop_id) {
+bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 	CHECK( !_is_today(shop.updated_at), "shop sunshine reward already executed" )
@@ -528,7 +528,7 @@ bool ayj_mall::_reward_shop(const uint64_t& shop_id) {
 	return false;
 }
 
-// bool ayj_mall::update_all_caches() {
+// bool hst_mall::update_all_caches() {
 
 // 	update_share_cache(); // platform share cache
 

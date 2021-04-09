@@ -10,7 +10,7 @@ namespace eosiosystem {
    class system_contract;
 }
 
-namespace ayj {
+namespace hst {
 
    using std::string;
    using namespace std;
@@ -25,7 +25,7 @@ namespace ayj {
     * eosio.token contract defines the structures and actions that allow users to create, issue, and manage
     * tokens on eosio based blockchains.
     */
-   class [[eosio::contract("aiyunji.coin")]] token : public contract {
+   class [[eosio::contract("hst.token")]] token : public contract {
       public:
          using contract::contract;
 

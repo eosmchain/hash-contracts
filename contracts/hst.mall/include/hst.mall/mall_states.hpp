@@ -11,7 +11,7 @@
 #include <string>
 #include <type_traits>
 
-namespace ayj {
+namespace hst {
 
 using namespace std;
 using namespace eosio;
@@ -31,9 +31,9 @@ static constexpr uint32_t seconds_per_hour      = 3600;
 static constexpr uint32_t ratio_boost           = 10000;
 static constexpr uint32_t MAX_STEP              = 20;
 
-#define CONTRACT_TBL [[eosio::table, eosio::contract("aiyunji.mall")]]
+#define CONTRACT_TBL [[eosio::table, eosio::contract("hst.mall")]]
 
-struct [[eosio::table("config"), eosio::contract("aiyunji.mall")]] config_t {
+struct [[eosio::table("config"), eosio::contract("hst.mall")]] config_t {
     uint16_t withdraw_fee_ratio         = 3000;  //boost by 10000
     uint16_t withdraw_mature_days       = 1;
     vector<uint64_t> allocation_ratios  = {
@@ -79,7 +79,7 @@ struct platform_share_t {
     }
 };
 
-struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
+struct [[eosio::table("global"), eosio::contract("hst.mall")]] global_t {
     bool executing = false;
     platform_share_t platform_share;
     platform_share_t platform_share_cache; //cached in executing
@@ -91,7 +91,7 @@ struct [[eosio::table("global"), eosio::contract("aiyunji.mall")]] global_t {
 };
 typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
-struct [[eosio::table("global2"), eosio::contract("aiyunji.mall")]] global2_t {
+struct [[eosio::table("global2"), eosio::contract("hst.mall")]] global2_t {
     uint64_t last_reward_shop_id                = 0;
     uint64_t last_sunshine_reward_spending_id   = 0;
     uint64_t last_platform_top_reward_step      = 0;

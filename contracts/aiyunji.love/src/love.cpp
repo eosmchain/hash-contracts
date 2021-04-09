@@ -11,7 +11,7 @@ using namespace eosio;
 ACTION ayj_love::init() {
     require_auth( _self );
 
-    _gstate.bank = "aiyunji.coin"_n;
+    _gstate.bank = "hst.token"_n;
 
 }
 

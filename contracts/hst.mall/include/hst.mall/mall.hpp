@@ -5,7 +5,7 @@
 #include "mall_states.hpp"
 #include "wasm_db.hpp"
 
-namespace ayj {
+namespace hst {
 
    using std::string;
    using namespace wasm::db;
@@ -16,7 +16,7 @@ namespace ayj {
     * eosio.token contract defines the structures and actions that allow users to create, issue, and manage
     * tokens on eosio based blockchains.
     */
-   class [[eosio::contract("aiyunji.mall")]] ayj_mall : public contract {
+   class [[eosio::contract("hst.mall")]] hst_mall : public contract {
       private:
          dbc                 _dbc;
 
@@ -32,7 +32,7 @@ namespace ayj {
       public:
          using contract::contract;
 
-         ayj_mall(eosio::name receiver, eosio::name code, datastream<const char*> ds):
+         hst_mall(eosio::name receiver, eosio::name code, datastream<const char*> ds):
             contract(receiver, code, ds), _dbc(_self), _config(_self, _self.value), 
             _global(_self, _self.value), _global2(_self, _self.value) 
          {
@@ -41,7 +41,7 @@ namespace ayj {
             _gstate2 = _global2.exists() ? _global2.get() : global2_t{};
          }
 
-         ~ayj_mall() 
+         ~hst_mall() 
          {
             _config.set( _cstate, _self );
             _global.set( _gstate, _self );
@@ -78,18 +78,6 @@ namespace ayj {
 
          // [[eosio::action]] // forced withdrawal to users in mining w/o spending for 35+ days
          // void withdrawx(const name& issuer, const name& to, const uint8_t& withdraw_type);
-
-         using init_action          = action_wrapper<"init"_n,          &ayj_mall::init >;
-         using transfer_action      = action_wrapper<"transfer"_n,      &ayj_mall::ontransfer >;
-         using registeruser_action  = action_wrapper<"registeruser"_n,  &ayj_mall::registeruser >;
-         using registershop_action  = action_wrapper<"registershop"_n,  &ayj_mall::registershop >;
-         using registercc_action    = action_wrapper<"registercc"_n,    &ayj_mall::registercc >;
-         using certifyuser_action   = action_wrapper<"certifyuser"_n,   &ayj_mall::certifyuser >;
-         using rewardshops_action   = action_wrapper<"rewardshops"_n,   &ayj_mall::rewardshops >;
-         using rewardcerts_action   = action_wrapper<"rewardcerts"_n,   &ayj_mall::rewardcerts >;
-         using rewardptops_action   = action_wrapper<"rewardptops"_n,   &ayj_mall::rewardptops >;
-         using withdraw_action      = action_wrapper<"withdraw"_n,      &ayj_mall::withdraw >;
-         // using withdrawx_action     = action_wrapper<"withdrawx"_n,     &ayj_mall::withdrawx >;
 
       private:
          inline void _init();

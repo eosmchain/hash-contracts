@@ -1,6 +1,6 @@
-#include <aiyunji.coin/aiyunji.coin.hpp>
+#include <hst.token/hst.token.hpp>
 
-namespace ayj {
+namespace hst {
 
 void token::create( const name&   issuer,
                     const asset&  maximum_supply )
