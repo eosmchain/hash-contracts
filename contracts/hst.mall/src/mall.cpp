@@ -492,7 +492,7 @@ void hst_mall::_withdraw_shop(const uint64_t& shop_id, user_t& user) {
 	update_share_cache( user );
 
 	_dbc.set( user );
-	idx.erase(itr);	//remove share from spends share pool
+	spends.erase(itr);	//remove share from spends share pool
 
 	asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
 	CHECK( platform_fees < quant, "Err: withdrawl fees oversized!" )
