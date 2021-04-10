@@ -168,7 +168,7 @@ void hst_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	CHECK( quantity.is_valid(), "Invalid quantity" )
 	CHECK( quantity.symbol == HST_SYMBOL, "Token Symbol not allowed" )
 	CHECK( quantity.amount > 0, "ontransfer quanity must be positive" )
-	CHECK( get_first_receiver() == HST_BANK, "must transfer by HST_BANK: " + HST_BANK.to_string() )
+	CHECK( get_first_receiver() == _cstate.mall_bank, "must transfer by HST_BANK: " + _cstate.mall_bank.to_string() )
 
 	vector<string_view> params = split(memo, "@");	
 	CHECK( params.size() == 2, "memo must be of <burn|user_account>@<shop_id>|<sn>" )
@@ -409,12 +409,14 @@ ACTION hst_mall::rewardptops() {
  * @to: the targer user to receive withdrawn amount
  * @withdraw_type: 0: spending share; 1: referrer share; 2: agent share
  * @shop_id: the specific shop to withdraw its spending reward when withdraw_type is 0
+ * 			 when shop_id = 0, it withdraws stakes from all shops, otherwise from a specific given shop_id
  *
  */
 ACTION hst_mall::withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, const uint64_t& shop_id) {
 	require_auth( issuer );
 	CHECK( is_account(to), "to account not valid: " + to.to_string() )
 	CHECK( withdraw_type < 3, "withdraw_type not valid: " + to_string(withdraw_type) )
+	CHECK( issuer == _cstate.platform_admin || issuer == to, "issuer not admin nor to user: " + issuer.to_string() )
 
 	user_t user(to);
 	CHECK( _dbc.get(user), "to user not found: " + to.to_string() )
