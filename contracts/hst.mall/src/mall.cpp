@@ -439,7 +439,7 @@ ACTION hst_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 	switch( withdraw_type ) {
 	case 0: //to withdraw everything
 		CHECK( shop_id == 0, "shop_id none-zero error" )
-		
+
 		withdrawn += _withdraw_shops(user);
 		withdrawn += _withdraw_customer_referral(user);
 		withdrawn += _withdraw_shop_referral(user);
@@ -502,7 +502,7 @@ asset hst_mall::_withdraw_shops(user_t& user) {
 	auto total_withdrawn = asset(0, HST_SYMBOL);
 
 	//iterate thru all shops of a user spent at
-	for (auto itr = lower_itr; itr != upper_itr && itr != idx.end(); itr++) {
+	for (auto itr = lower_itr; itr != upper_itr && itr != idx.end();) {
 		total_withdrawn += _withdraw_shop(itr->shop_id, user, spends, false);
 		itr = idx.erase(itr);
 	}
