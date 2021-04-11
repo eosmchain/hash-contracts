@@ -438,7 +438,9 @@ ACTION hst_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 
 	switch( withdraw_type ) {
 	case 0: //to withdraw everything
-		withdrawn += (shop_id > 0) ? _withdraw_shop(shop_id, user, spends, true) : _withdraw_shops(user);
+		CHECK( shop_id == 0, "shop_id none-zero error" )
+		
+		withdrawn += _withdraw_shops(user);
 		withdrawn += _withdraw_customer_referral(user);
 		withdrawn += _withdraw_shop_referral(user);
 		break;
