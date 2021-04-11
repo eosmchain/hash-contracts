@@ -286,7 +286,8 @@ ACTION hst_mall::certifyuser(const name& issuer, const name& user) {
 }
 
 void hst_mall::_init() {
-	_cstate.mall_bank = "hst.token"_n;
+	// _cstate.mall_bank = "hst.token"_n;
+	_cstate.mall_bank = "aiyunji.coin"_n;
 	_cstate.platform_fee_collector = "masteraychen"_n;
 	_cstate.platform_admin = "hst.admin"_n;
 	_cstate.platform_referrer = "masteraychen"_n;
@@ -407,7 +408,12 @@ ACTION hst_mall::rewardptops() {
  * 
  * @issuer: either user or platform admin who withdraws for user
  * @to: the targer user to receive withdrawn amount
- * @withdraw_type: 0: spending share; 1: referrer share; 2: agent share
+ * @withdraw_type: 
+ * 			0: withdraw all, 
+ * 			1: withdraw spending share; 
+ * 			2: withdraw referrer share; 
+ * 			3: withdraw agent share
+ * 
  * @shop_id: the specific shop to withdraw its spending reward when withdraw_type is 0
  * 			 when shop_id = 0, it withdraws stakes from all shops, otherwise from a specific given shop_id
  *
@@ -424,61 +430,92 @@ ACTION hst_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 	
 	auto now = current_time_point();
 
+	auto withdrawn = asset(0, HST_SYMBOL);
 	switch( withdraw_type ) {
-	case 0: // spending share removal 
-	{
-		if (shop_id > 0) {	//withdraw a single shop
-			_withdraw_shop(shop_id, user);
-			return;
-		}
+	case 0: //withdraw everything
+		withdrawn += _withdraw_shops(shop_id, user);
+		withdrawn += _withdraw_customer_referral(user);
+		withdrawn += _withdraw_shop_referral(user);
+		break;
 
-		//withdraw all shops, it might run out of time limit and thus throw exception
-		spending_t::tbl_t spends(_self, _self.value);
-		auto idx = spends.get_index<"custidx"_n>();
-		auto lower_itr = idx.lower_bound( to.value );
-		auto upper_itr = idx.upper_bound( to.value );
-		for (auto itr = lower_itr; itr != upper_itr && itr != idx.end(); itr++) {
-			_withdraw_shop(itr->shop_id, user);
-		}
+	case 1: // spending share removal
+		withdrawn += _withdraw_shops(shop_id, user);
+		break;
+
+	case 2: //customer referral reward withdrawl
+		withdrawn += _withdraw_customer_referral(user);
+		break;
+
+	case 3: //shop referral reward withdrawal
+		withdrawn += _withdraw_shop_referral(user);
+		break;
 	}
-	break;
-	case 1: //customer referral reward withdrawl
-	{
-		auto quant = user.share.customer_referral_share;
-		user.share.customer_referral_share.amount = 0;
-		update_share_cache( user );
-		_dbc.set( user );
 
-		asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
-		CHECK( platform_fees < quant, "Err: withdrawl fees oversized!" )
-
-		TRANSFER( _cstate.mall_bank, _cstate.platform_fee_collector, platform_fees, "customer ref fees" )
-		TRANSFER( _cstate.mall_bank, to, quant - platform_fees, "customer ref reward" )
-		
-	}
-	break;
-	case 2: //shop referral reward withdrawal
-	{
-		auto quant = user.share.shop_referral_share;
-		user.share.shop_referral_share.amount = 0;
-		update_share_cache( user );
-		_dbc.set( user );
-
-		asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
-		CHECK( platform_fees < quant, "Err: withdrawl fees oversized!" )
-
-		TRANSFER( _cstate.mall_bank, _cstate.platform_fee_collector, platform_fees, "shop ref fees" )
-		TRANSFER( _cstate.mall_bank, to, quant - platform_fees, "shop ref reward" )
-	}
-	break;
-	}
+	CHECK( withdrawn.amount > 0, "none withdrawn" )
 }
 
-void hst_mall::_withdraw_shop(const uint64_t& shop_id, user_t& user) {
+asset hst_mall::_withdraw_shops(const uint64_t& shop_id, user_t& user) {
+	if (shop_id > 0) {	//withdraw a single shop
+		return _withdraw_shop(shop_id, user);
+	}
+
+	//withdraw all shops, it might run out of time limit and thus throw exception
+	spending_t::tbl_t spends(_self, _self.value);
+	auto to = user.account;
+	auto idx = spends.get_index<"custidx"_n>();
+	auto lower_itr = idx.lower_bound( to.value );
+	auto upper_itr = idx.upper_bound( to.value );
+	auto withdrawn = asset(0, HST_SYMBOL);
+
+	for (auto itr = lower_itr; itr != upper_itr && itr != idx.end(); itr++) {
+		withdrawn += _withdraw_shop(itr->shop_id, user);
+	}
+}
+asset hst_mall::_withdraw_customer_referral(user_t& user) {
+	auto quant = user.share.customer_referral_share;
+	if (quant.amount == 0)
+		return quant;
+
+	user.share.customer_referral_share.amount = 0;
+	update_share_cache( user );
+	_dbc.set( user );
+
+	asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
+	CHECK( platform_fees < quant, "Err: withdrawl fees oversized!" )
+	auto to = user.account;
+
+	TRANSFER( _cstate.mall_bank, _cstate.platform_fee_collector, platform_fees, "customer ref fees" )
+	TRANSFER( _cstate.mall_bank, to, quant - platform_fees, "customer ref reward" )
+
+	return quant;
+}
+
+asset hst_mall::_withdraw_shop_referral(user_t& user) {
+	auto quant = user.share.shop_referral_share;
+	if (quant.amount == 0)
+		return quant;
+
+	user.share.shop_referral_share.amount = 0;
+	update_share_cache( user );
+	_dbc.set( user );
+	
+	asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
+	CHECK( platform_fees < quant, "Err: withdrawl fees oversized!" )
+	auto to = user.account;
+
+	TRANSFER( _cstate.mall_bank, _cstate.platform_fee_collector, platform_fees, "shop ref fees" )
+	TRANSFER( _cstate.mall_bank, to, quant - platform_fees, "shop ref reward" )
+
+	return quant;
+}
+
+asset hst_mall::_withdraw_shop(const uint64_t& shop_id, user_t& user) {
 	spending_t::tbl_t spends(_self, _self.value);
 	auto idx = spends.get_index<"shopcustidx"_n>();
-	auto itr = idx.lower_bound( (uint128_t) shop_id << 64 | user.account.value );
-	CHECK( itr != idx.end(), "customer: " + user.account.to_string() + " @ shop: " + to_string(shop_id) + " not found" )
+	auto idx_key = (uint128_t) shop_id << 64 | user.account.value;
+	auto itr = idx.lower_bound( idx_key );
+	auto upper_itr = idx.upper_bound( idx_key );
+	CHECK( itr != upper_itr && itr != idx.end(), "customer: " + user.account.to_string() + " @ shop: " + to_string(shop_id) + " not found" )
 	auto quant = itr->share_cache.total_spending;
 	CHECK( user.share_cache.spending_share >= quant, "Err: user.share_cache.spending_reward: " 
 				+ user.share_cache.spending_share.to_string() + " < itr->share_cache.total_spending: " 
@@ -492,13 +529,18 @@ void hst_mall::_withdraw_shop(const uint64_t& shop_id, user_t& user) {
 	update_share_cache( user );
 
 	_dbc.set( user );
-	spends.erase(itr);	//remove share from spends share pool
+	
+	spending_t spend(itr->id);
+	CHECK( _dbc.get(spend), "Err: spend not found: " + to_string(itr->id) )
+	_dbc.del(spend); //remove spending stake from spends share pool
 
 	asset platform_fees = quant * _cstate.withdraw_fee_ratio / ratio_boost;
 	CHECK( platform_fees < quant, "Err: withdrawl fees oversized!" )
 
 	TRANSFER( _cstate.mall_bank, _cstate.platform_fee_collector, platform_fees, "fees" )
 	TRANSFER( _cstate.mall_bank, user.account, quant - platform_fees, "spend reward" )
+
+	return quant;
 }
 
 bool hst_mall::_reward_shop(const uint64_t& shop_id) {
