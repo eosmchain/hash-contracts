@@ -40,19 +40,19 @@ inline void hst_mall::update_share_cache(spending_t& spend) {
 }
 
 //  total, remaining, customer, shop_id, now 
-inline void hst_mall::credit_customer(const asset& total, user_t& customer, const uint64_t& shop_id, const time_point_sec& now) {
+inline void hst_mall::credit_user(const asset& total, user_t& user, const uint64_t& shop_id, const time_point_sec& now) {
 	auto share0 						= total * _cstate.allocation_ratios[0] / ratio_boost; 
 	_gstate.platform_share.total_share 	+= total;	//TODO: check its usage
 	
 	spending_t::tbl_t spends(_self, _self.value);
 	auto idx = spends.get_index<"shopcustidx"_n>();
-	auto key = ((uint128_t) shop_id << 64) | customer.account.value; 
+	auto key = ((uint128_t) shop_id << 64) | user.account.value; 
 	auto itr = idx.lower_bound( key );
 	if (itr == idx.end()) {
 		spends.emplace(_self, [&](auto& row) {
 			row.id 						= spends.available_primary_key();
 			row.shop_id 				= shop_id;
-			row.customer 				= customer.account;
+			row.customer 				= user.account;
 			row.share.day_spending		= share0; //will be reset upon sending daily reward
 			row.share.total_spending 	= share0;
 			row.created_at 				= now;
@@ -68,10 +68,10 @@ inline void hst_mall::credit_customer(const asset& total, user_t& customer, cons
 		});
 	}
 	
-	customer.share.spending_share 		+= share0;
-	customer.updated_at 				= now;
-	update_share_cache(customer);
-	_dbc.set( customer );
+	user.share.spending_share 		+= share0;
+	user.updated_at 				= now;
+	update_share_cache(user);
+	_dbc.set( user );
 }
 
 // remaining, shop, now
@@ -191,7 +191,7 @@ void hst_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	auto now				= time_point_sec( current_time_point() );
 	auto total				= quantity;
 	
-	credit_customer			( total, user, shop_id, now );
+	credit_user				( total, user, shop_id, now );
 	credit_shop				( total, shop, now );
 	credit_platform_top		( total );
 	credit_certified		( total );
