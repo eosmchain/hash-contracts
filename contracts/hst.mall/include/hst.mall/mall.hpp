@@ -84,8 +84,8 @@ namespace hst {
          inline void _check_rewarded(const time_point_sec& last_rewarded_at);
          inline bool _reward_shop(const uint64_t& shop_id);
          inline bool _is_today(const time_point_sec& time);
-         inline asset _withdraw_shop(const uint64_t& shop_id, user_t& user);
-         inline asset _withdraw_shops(const uint64_t& shop_id, user_t& user);
+         inline asset _withdraw_shop(const uint64_t& shop_id, user_t& user, spending_t::tbl_t& spends, bool del_spend);
+         inline asset _withdraw_shops(user_t& user);
          inline asset _withdraw_customer_referral(user_t& user);
          inline asset _withdraw_shop_referral(user_t& user);
 
