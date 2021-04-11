@@ -209,7 +209,9 @@ ACTION hst_mall::registeruser(const name& issuer, const name& user, const name& 
 	CHECK( issuer == _cstate.platform_admin, "non-platform admin not allowed" )
 	require_auth( issuer );
 
-	CHECK( is_account(user), "invalid account: " + user.to_string() )
+	CHECK( is_account(user), "invalid user: " + user.to_string() )
+	CHECK( is_account(referrer), "invalid referrer: " + referrer.to_string() )
+	CHECK( user != referrer, "cannot refer self! ")
 
 	user_t new_user(user);
 	CHECK( !_dbc.get(new_user), "user already registered: " + user.to_string() )
