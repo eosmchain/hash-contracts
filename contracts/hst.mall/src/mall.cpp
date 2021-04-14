@@ -101,7 +101,7 @@ inline void hst_mall::credit_referrer(const asset& total, const user_t& user, co
 	auto share5 = total * _cstate.allocation_ratios[5] / ratio_boost; //direct-referral:	10%
 	auto share6 = total * _cstate.allocation_ratios[6] / ratio_boost; //agent-referral:		5%
 
-	if (is_account( user.referral_account) && user.referral_account != shop.owner_account) {
+	if (is_account(user.referral_account) && user.referral_account != shop.owner_account) {
 		user_t ext_referrer(user.referral_account);
 		CHECK( _dbc.get(ext_referrer), "customer referrer not registered: " + user.referral_account.to_string() )
 		ext_referrer.share.customer_referral_share += share5;
@@ -426,7 +426,7 @@ ACTION hst_mall::rewardptops() {
 ACTION hst_mall::withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, const uint64_t& shop_id) {
 	require_auth( issuer );
 	CHECK( is_account(to), "to account not valid: " + to.to_string() )
-	CHECK( withdraw_type < 3, "withdraw_type not valid: " + to_string(withdraw_type) )
+	CHECK( withdraw_type < 4, "withdraw_type not valid: " + to_string(withdraw_type) )
 	CHECK( issuer == _cstate.platform_admin || issuer == to, "issuer (" + issuer.to_string() + ") not an admin (" + 
 		_cstate.platform_admin.to_string() + ", neither a to user: " + to.to_string() )
 
