@@ -569,9 +569,12 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 	spending_t::tbl_t spends(_self, _self.value);
 	auto spend_idx = spends.get_index<"shopspends"_n>();
-	auto upper_itr = spend_idx.upper_bound( shop.last_sunshine_reward_spend_idx.get_index() );
-	auto itr = upper_itr;
-	for (uint8_t step = 0; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
+	auto spend_key = shop.last_sunshine_reward_spend_idx.get_index();
+	auto lower_itr = spend_idx.lower_bound( spend_key );
+	auto upper_itr = spend_idx.upper_bound( spend_key );
+	// auto itr = upper_itr;
+	auto itr = lower_itr;
+	for (uint8_t step = 0; itr != upper_itr && itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
 		if (itr->shop_id != shop_id) break; //already iterate all spends within the given shop
 
 		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
