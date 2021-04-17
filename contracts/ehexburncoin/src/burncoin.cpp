@@ -12,15 +12,24 @@ namespace ehex {
 void ehex_burncoin::init() {
 	require_auth( _self );
 
-	asset_info_t ehex_info {
-		asset(EHEX_MAX_SUPPLY * EHEX_PRECISION, EHEX_SYMBOL),
-		asset(0, EHEX_SYMBOL),
-		asset(0, EHEX_SYMBOL),
-		time_point()
-	};
+	// asset_info_t ehex_info {
+	// 	asset(EHEX_MAX_SUPPLY * EHEX_PRECISION, EHEX_SYMBOL),
+	// 	asset(0, EHEX_SYMBOL),
+	// 	asset(0, EHEX_SYMBOL),
+	// 	time_point()
+	// };
 
-	_gstate.asset_stats.emplace("EHEX", ehex_info);
+	// _gstate.asset_stats.emplace("EHEX", ehex_info);
     
+	// auto quantity = asset(637000000000, EHEX_SYMBOL);
+
+	// _gstate.asset_stats.at("EHEX").circulated 		-= quantity;
+	// _gstate.asset_stats.at("EHEX").total_burned 	+= quantity;
+	// _gstate.asset_stats.at("EHEX").last_burned 		= quantity;
+	// _gstate.asset_stats.at("EHEX").last_burned_at 	= current_time_point();
+
+	check( false, "init disabled" );
+
 	// check( false, ehex_info.last_burned.to_string() );
 }
 
@@ -38,14 +47,12 @@ void ehex_burncoin::ontransfer(const name& from, const name& to, const asset& qu
 	CHECK( get_first_receiver() == EHEX_BANK, "must transfer by EHEX_BANK: " + EHEX_BANK.to_string() )
 	CHECK( _gstate.asset_stats["EHEX"].circulated  > quantity, "Err: quantity overflow" )
 	
-	auto ehex_stat 				= _gstate.asset_stats["EHEX"];
-	ehex_stat.circulated 		-= quantity;
-	ehex_stat.total_burned 		+= quantity;
-	ehex_stat.last_burned 		= quantity;
-	ehex_stat.last_burned_at 	= current_time_point();
+	_gstate.asset_stats.at("EHEX").circulated 		-= quantity;
+	_gstate.asset_stats.at("EHEX").total_burned 	+= quantity;
+	_gstate.asset_stats.at("EHEX").last_burned 		= quantity;
+	_gstate.asset_stats.at("EHEX").last_burned_at 	= current_time_point();
 
 	BURN( EHEX_BANK, _self, quantity, memo )
-
 
 }
 
