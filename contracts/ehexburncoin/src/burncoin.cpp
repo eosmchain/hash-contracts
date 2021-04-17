@@ -19,8 +19,9 @@ void ehex_burncoin::init() {
 		time_point()
 	};
 
-	_gstate.asset_stats["EHEX"] = ehex_info;
+	_gstate.asset_stats.emplace("EHEX", ehex_info);
     
+	// check( false, ehex_info.last_burned.to_string() );
 }
 
 /**

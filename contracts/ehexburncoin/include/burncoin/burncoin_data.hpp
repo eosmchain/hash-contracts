@@ -27,13 +27,17 @@ struct asset_info_t {
     asset total_burned;
     asset last_burned;
     time_point last_burned_at;
+
+    EOSLIB_SERIALIZE(asset_info_t, (circulated)(total_burned)(last_burned)(last_burned_at) )
 };
 
-struct [[eosio::table("global"), eosio::contract("ehex_burncoin")]] global_tbl {
+struct [[eosio::table("global"), eosio::contract("ehexburncoin")]] global_t {
     std::map<std::string, asset_info_t> asset_stats; // symbol string -> asset_info_t
    
-    global_tbl(){}
+    global_t(){}
+
+    EOSLIB_SERIALIZE( global_t, (asset_stats) )
 };
-typedef eosio::singleton< "global"_n, global_tbl > global_singleton;
+typedef eosio::singleton< "global"_n, global_t > global_singleton;
 
 }

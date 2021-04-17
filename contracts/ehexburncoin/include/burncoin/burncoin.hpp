@@ -27,7 +27,7 @@ using namespace wasm::db;
 class [[eosio::contract("ehexburncoin")]] ehex_burncoin: public eosio::contract {
   private:
     global_singleton    _global;
-    global_tbl          _gstate;
+    global_t            _gstate;
     dbc                 _dbc;
 
   public:
@@ -36,7 +36,7 @@ class [[eosio::contract("ehexburncoin")]] ehex_burncoin: public eosio::contract 
     ehex_burncoin(eosio::name receiver, eosio::name code, datastream<const char*> ds):
         contract(receiver, code, ds), _global(get_self(), get_self().value), _dbc(get_self())
     {
-        _gstate = _global.exists() ? _global.get() : global_tbl{};
+        _gstate = _global.exists() ? _global.get() : global_t{};
     }
 
     ~ehex_burncoin() 
