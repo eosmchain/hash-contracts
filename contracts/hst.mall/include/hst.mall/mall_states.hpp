@@ -177,8 +177,8 @@ struct CONTRACT_TBL user_t {
 };
 
 struct shop_share_t {
-    asset total_spending                    = asset(0, HST_SYMBOL);
-    asset day_spending                      = asset(0, HST_SYMBOL);
+    asset total_spending                    = asset(0, HST_SYMBOL); //TODO: remove in release
+    asset day_spending                      = asset(0, HST_SYMBOL); //TODO: remove in release
     asset sunshine_share                    = asset(0, HST_SYMBOL);
     asset top_share                         = asset(0, HST_SYMBOL);
 

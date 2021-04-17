@@ -40,18 +40,20 @@ inline void hst_mall::update_share_cache(spending_t& spend) {
 }
 
 //  total, remaining, customer, shop_id, now 
-inline void hst_mall::credit_user(const asset& total, user_t& user, const uint64_t& shop_id, const time_point_sec& now) {
+inline void hst_mall::credit_user(const asset& total, user_t& user, const shop_t& shop, const time_point_sec& now) {
 	auto share0 						= total * _cstate.allocation_ratios[0] / ratio_boost; 
 	_gstate.platform_share.total_share 	+= total;	//TODO: check its usage
 	
 	spending_t::tbl_t spends(_self, _self.value);
 	auto idx = spends.get_index<"shopcustidx"_n>();
-	auto key = ((uint128_t) shop_id << 64) | user.account.value; 
-	auto itr = idx.lower_bound( key );
-	if (itr == idx.end()) {
+	auto key = ((uint128_t) shop.id << 64) | user.account.value; 
+	auto lower_itr = idx.lower_bound( key );
+	auto upper_itr = idx.upper_bound( key );
+	auto itr = lower_itr;
+	if (itr == upper_itr || itr == idx.end()) {
 		spends.emplace(_self, [&](auto& row) {
 			row.id 						= spends.available_primary_key();
-			row.shop_id 				= shop_id;
+			row.shop_id 				= shop.id;
 			row.customer 				= user.account;
 			row.share.day_spending		= share0; //will be reset upon sending daily reward
 			row.share.total_spending 	= share0;
@@ -470,6 +472,7 @@ asset hst_mall::_withdraw_shop(const uint64_t& shop_id, user_t& user, spending_t
 	auto u_itr = idx.upper_bound( key );
 	CHECK( l_itr != u_itr && l_itr != idx.end(), "customer: " + user.account.to_string() + " @ shop: " + to_string(shop_id) + " not found" )
 	auto quant = l_itr->share_cache.total_spending;
+	CHECK( quant.amount > 0, "Err: zero shop total spending of customer: " +  user.account.to_string() )
 	CHECK( user.share_cache.spending_share >= quant, "Err: user.share_cache.spending_reward: " 
 				+ user.share_cache.spending_share.to_string() + " < itr->share_cache.total_spending: " 
 				+ l_itr->share_cache.total_spending.to_string() )
@@ -504,11 +507,15 @@ asset hst_mall::_withdraw_shops(user_t& user) {
 	auto total_withdrawn = asset(0, HST_SYMBOL);
 
 	//iterate thru all shops of a user spent at
+	// string res = "";
 	for (auto itr = lower_itr; itr != upper_itr && itr != idx.end();) {
+		// res += to_string(itr->id) + ",";
+
 		total_withdrawn += _withdraw_shop(itr->shop_id, user, spends, false);
 		itr = idx.erase(itr);
 	}
 
+	// check(false, "to: " + to.to_string() + "\n res: " + res);
 	return total_withdrawn;
 }
 

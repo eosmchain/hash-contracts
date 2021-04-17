@@ -11,3 +11,5 @@ set(ICON_BASE_URL "http://127.0.0.1/ricardian_assets/mgp.contracts/icons")
 add_subdirectory(hst.mall)
 # add_subdirectory(aiyunji.love)
 # add_subdirectory(aiyunji.swap)
+
+# add_subdirectory(ehexburncoin)
