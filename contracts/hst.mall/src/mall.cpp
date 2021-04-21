@@ -122,7 +122,7 @@ inline void hst_mall::credit_referrer(const asset& total, const user_t& user, co
 		_dbc.set( user_referrer );
 
 		if (is_account(shop.referral_account)) {
-			user_t shop_referrer(user.referral_account);
+			user_t shop_referrer(shop.referral_account);
 			CHECK( _dbc.get(shop_referrer), "shop referrer not registered: " + shop.referral_account.to_string() )
 			shop_referrer.share.customer_referral_share += share6;
 			shop_referrer.updated_at = now;
@@ -298,6 +298,8 @@ void hst_mall::_init() {
 }
 
 ACTION hst_mall::init() {
+	// _cstate.allocation_ratios[2] = 800;
+	// _cstate.allocation_ratios[3] = 500;
 	// _init();
 	// _cstate.withdraw_mature_days = 1;
 

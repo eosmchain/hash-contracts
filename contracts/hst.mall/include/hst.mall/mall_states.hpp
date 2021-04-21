@@ -40,8 +40,8 @@ struct [[eosio::table("config"), eosio::contract("hst.mall")]] config_t {
     vector<uint64_t> allocation_ratios  = {
         4500,   //0: user share
         1500,   //1: shop_sunshine share
-        500,    //2: shop_top share
-        800,    //3: certified share
+        800,    //2: shop_top share
+        500,    //3: certified share
         500,    //4: pltform_top share
         1000,   //5: direct_referral share
         500,    //6: direct_agent share
