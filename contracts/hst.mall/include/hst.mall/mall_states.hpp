@@ -143,10 +143,10 @@ struct user_share_t {
         return spending_share + customer_referral_share + shop_referral_share; 
     }
 };
-
 struct CONTRACT_TBL user_t {
     name account;
     name referral_account;
+    set<uint64_t> owned_shops;    //max 100
     user_share_t share;
     user_share_t share_cache;
     bool share_cache_updated = false;
@@ -172,7 +172,7 @@ struct CONTRACT_TBL user_t {
         indexed_by<"cacheupdt"_n,    const_mem_fun<user_t, uint128_t, &user_t::by_cache_update>  >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( user_t,   (account)(referral_account)(share)(share_cache)(share_cache_updated)
+    EOSLIB_SERIALIZE( user_t,   (account)(referral_account)(owned_shops)(share)(share_cache)(share_cache_updated)
                                 (created_at)(updated_at) )
 };
 

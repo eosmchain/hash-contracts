@@ -103,40 +103,38 @@ inline void hst_mall::credit_referrer(const asset& total, const user_t& user, co
 	auto share5 = total * _cstate.allocation_ratios[5] / ratio_boost; //direct-referral:	10%
 	auto share6 = total * _cstate.allocation_ratios[6] / ratio_boost; //agent-referral:		5%
 
-	if (is_account(user.referral_account) && user.referral_account != shop.owner_account) {
-		user_t ext_referrer(user.referral_account);
-		CHECK( _dbc.get(ext_referrer), "customer referrer not registered: " + user.referral_account.to_string() )
-		ext_referrer.share.customer_referral_share += share5;
-		ext_referrer.updated_at = now;
-		update_share_cache(ext_referrer);
-		_dbc.set( ext_referrer );
-
-		_gstate.platform_share.lucky_draw_share += share6;
-
-	} else if (user.referral_account == shop.owner_account) { //referred within the shop
-		user_t user_referrer(user.referral_account);
-		CHECK( _dbc.get(user_referrer), "customer referrer not registered: " + user.referral_account.to_string() )
-		user_referrer.share.customer_referral_share += share5;
-		user_referrer.updated_at = now;
-		update_share_cache(user_referrer);
-		_dbc.set( user_referrer );
-
-		if (is_account(shop.referral_account)) {
-			user_t shop_referrer(shop.referral_account);
-			CHECK( _dbc.get(shop_referrer), "shop referrer not registered: " + shop.referral_account.to_string() )
-			shop_referrer.share.customer_referral_share += share6;
-			shop_referrer.updated_at = now;
-			update_share_cache(shop_referrer);
-			_dbc.set( shop_referrer );
-
-		} else {
-			_gstate.platform_share.lucky_draw_share += share6;
-		}
-	} else {
+	if (!is_account(user.referral_account)) {
 		_gstate.platform_share.lucky_draw_share += share5 + share6;
+		return;
 	}
-}
 
+	//credit direct referrer
+	auto direct_referrer = user_t(user.referral_account);
+	CHECK( _dbc.get(direct_referrer), "Err: direct referrer not registered: " +  user.referral_account.to_string() )
+	direct_referrer.share.customer_referral_share += share5;
+	direct_referrer.updated_at = now;
+	update_share_cache(direct_referrer);
+	_dbc.set( direct_referrer );
+
+	if (direct_referrer.owned_shops.count(shop.id) == 0) { //none-shop-owner referrer
+		_gstate.platform_share.lucky_draw_share += share6;
+		return;
+	}
+
+	//crerdit upper referrer
+	if (!is_account(direct_referrer.referral_account)) {
+		_gstate.platform_share.lucky_draw_share += share6;
+		return;
+	}
+
+	user_t upper_referrer(direct_referrer.referral_account);
+	CHECK( _dbc.get(upper_referrer), "upper referrer not registered: " + direct_referrer.referral_account.to_string() )
+	upper_referrer.share.customer_referral_share += share6;
+	upper_referrer.updated_at = now;
+	update_share_cache( upper_referrer );
+	_dbc.set( upper_referrer );
+
+}
 
 inline void hst_mall::credit_citycenter(const asset& total, const uint64_t& cc_id) {
 	citycenter_t cc(cc_id);
@@ -231,9 +229,12 @@ ACTION hst_mall::registershop(const name& issuer, const name& owner_account, con
 
 	CHECK( shop_name.size() < 128, "shop name too long: " + to_string(shop_name.size()) )
 
-	user_t user(owner_account);
-	CHECK( _dbc.get(user), "user not registered: " + owner_account.to_string() )
-	auto shop_referrer = user.referral_account;
+	user_t shop_owner(owner_account);
+	CHECK( _dbc.get(shop_owner), "user not registered: " + owner_account.to_string() )
+	shop_owner.owned_shops.insert(shop_id);
+	_dbc.set(shop_owner);
+
+	auto shop_referrer = shop_owner.referral_account;
 	if (!shop_referrer)
 		shop_referrer = _cstate.platform_referrer;
 	
@@ -298,6 +299,24 @@ void hst_mall::_init() {
 }
 
 ACTION hst_mall::init() {
+	// user_tbl_t users(_self, _self.value);
+	
+	// for (auto itr = users.begin(); itr != users.end();) {
+	// 	user_t new_user(itr->account);
+	// 	_dbc.get(new_user);
+
+    // 	new_user.referral_account = itr->referral_account;
+    // 	new_user.share = itr->share;
+    // 	new_user.share_cache = itr->share_cache;
+    // 	new_user.share_cache_updated = itr->share_cache_updated;
+    // 	new_user.created_at = itr->created_at;
+    // 	new_user.updated_at = itr->updated_at;
+
+	// 	_dbc.set( new_user );
+
+	// 	itr = users.erase(itr);
+	// }
+
 	// _cstate.allocation_ratios[2] = 800;
 	// _cstate.allocation_ratios[3] = 500;
 	// _init();
