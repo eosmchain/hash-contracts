@@ -300,5 +300,30 @@ struct CONTRACT_TBL certification_t {
     EOSLIB_SERIALIZE( certification_t, (user)(created_at) )
 };
 
+struct CONTRACT_TBL withdraw_t {
+    uint64_t id;
+    name withdrawer;    //withdrawn by
+    name withdrawee;    //withdrawn to
+    uint8_t withdraw_type;
+    uint64_t withdraw_shopid;
+    asset quantity;
+    time_point_sec created_at;
+
+    withdraw_t() {}
+    withdraw_t(const uint64_t& i): id(i) {}
+
+    uint64_t scope() const { return 0; }
+    uint64_t primary_key() const { return id; }
+
+    /// to get withdraw records by withdrawee
+    uint64_t by_withdrawee() const { return withdrawee.value; }
+    typedef eosio::multi_index
+    < "withdraws"_n, withdraw_t,
+        indexed_by<"withdrawee"_n, const_mem_fun<withdraw_t, uint64_t, &withdraw_t::by_withdrawee> >
+    > tbl_t;
+
+    EOSLIB_SERIALIZE( withdraw_t,   (id)(withdrawer)(withdrawee)(withdraw_type)(withdraw_shopid)
+                                    (quantity)(created_at) )
+};
 
 } //end of namespace ayj

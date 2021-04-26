@@ -484,6 +484,18 @@ ACTION hst_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 	}
 
 	CHECK( withdrawn.amount > 0, "none withdrawn" )
+
+	withdraw_t::tbl_t withdraws(_self, _self.value);
+	withdraws.emplace(_self, [&](auto& row) {
+		row.id = withdraws.available_primary_key();
+		row.withdrawer = issuer;
+		row.withdrawee = to;
+		row.withdraw_type = withdraw_type;
+		row.withdraw_shopid = shop_id;
+		row.quantity = withdrawn;
+		row.created_at = time_point_sec(current_time_point());
+	});
+
 }
 
 asset hst_mall::_withdraw_shop(const uint64_t& shop_id, user_t& user, spending_t::tbl_t& spends, bool del_spend) {
