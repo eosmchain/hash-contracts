@@ -121,14 +121,19 @@ inline void hst_mall::credit_referrer(const asset& total, const user_t& user, co
 		return;
 	}
 
-	//crerdit upper referrer
+	//check if upper referrer of a shop owner exists or not
 	if (!is_account(direct_referrer.referral_account)) {
 		_gstate.platform_share.lucky_draw_share += share6;
 		return;
 	}
-
+	//check if upper referrer has been registered or not
 	user_t upper_referrer(direct_referrer.referral_account);
-	CHECK( _dbc.get(upper_referrer), "upper referrer not registered: " + direct_referrer.referral_account.to_string() )
+	if (!_dbc.get(upper_referrer)) {
+		_gstate.platform_share.lucky_draw_share += share6;
+		return;	
+	}
+
+	//credit upper referrer of a shop owner
 	upper_referrer.share.customer_referral_share += share6;
 	upper_referrer.updated_at = now;
 	update_share_cache( upper_referrer );
@@ -291,11 +296,11 @@ ACTION hst_mall::certifyuser(const name& issuer, const name& user) {
 }
 
 void hst_mall::_init() {
-	// _cstate.mall_bank = "hst.token"_n;
-	_cstate.mall_bank = "aiyunji.coin"_n;
-	_cstate.platform_fee_collector = "masteraychen"_n;
+	_cstate.mall_bank = "hst.token"_n;
+	// _cstate.mall_bank = "aiyunji.coin"_n;
+	_cstate.platform_fee_collector = "hst.feeadmin"_n;
 	_cstate.platform_admin = "hst.admin"_n;
-	_cstate.platform_referrer = "masteraychen"_n;
+	_cstate.platform_referrer = "hst.refadmin"_n;
 }
 
 ACTION hst_mall::init() {
@@ -319,7 +324,7 @@ ACTION hst_mall::init() {
 
 	// _cstate.allocation_ratios[2] = 800;
 	// _cstate.allocation_ratios[3] = 500;
-	// _init();
+	_init();
 	// _cstate.withdraw_mature_days = 1;
 
 	// spending_t spend(1);
