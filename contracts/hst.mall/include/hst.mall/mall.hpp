@@ -51,6 +51,9 @@ namespace hst {
          [[eosio::action]]
          void init();  //only code maintainer can init
 
+         [[eosio::action]]
+         void setownershop(const name& owner, const uint64_t& shop_id);
+
          [[eosio::on_notify("*::transfer")]]
          void ontransfer(const name& from, const name& to, const asset& quantity, const string& memo);
 

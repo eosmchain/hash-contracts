@@ -304,6 +304,9 @@ void hst_mall::_init() {
 }
 
 ACTION hst_mall::init() {
+	require_auth(_self);
+	check(false, "init disabled");
+
 	// user_tbl_t users(_self, _self.value);
 	
 	// for (auto itr = users.begin(); itr != users.end();) {
@@ -348,6 +351,17 @@ ACTION hst_mall::init() {
 	}
 	check( found, "finished!" );
 */
+}
+
+ACTION hst_mall::setownershop(const name& owner, const uint64_t& shop_id) {
+	require_auth(_self);
+
+	user_t user(owner);
+	CHECK( _dbc.get(user), "shop owner user not registered: " + owner.to_string() )
+
+	user.owned_shops.insert(shop_id);
+	_dbc.set( user );
+	
 }
 
 inline void hst_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
