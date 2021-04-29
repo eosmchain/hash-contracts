@@ -215,13 +215,12 @@ ACTION hst_mall::registeruser(const name& issuer, const name& user, const name& 
 	require_auth( issuer );
 
 	CHECK( is_account(user), "invalid user: " + user.to_string() )
-	CHECK( is_account(referrer), "invalid referrer: " + referrer.to_string() )
 	CHECK( user != referrer, "cannot refer self! ")
 
 	user_t new_user(user);
 	CHECK( !_dbc.get(new_user), "user already registered: " + user.to_string() )
 
-	new_user.referral_account = referrer;
+	new_user.referral_account = is_account(referrer) ? referrer : _cstate.platform_referrer;
 	new_user.created_at = time_point_sec( current_time_point() );
 
 	_dbc.set(new_user);
