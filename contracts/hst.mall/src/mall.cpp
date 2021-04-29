@@ -134,7 +134,7 @@ inline void hst_mall::credit_referrer(const asset& total, const user_t& user, co
 	}
 
 	//credit upper referrer of a shop owner
-	upper_referrer.share.customer_referral_share += share6;
+	upper_referrer.share.shop_referral_share += share6;
 	upper_referrer.updated_at = now;
 	update_share_cache( upper_referrer );
 	_dbc.set( upper_referrer );
