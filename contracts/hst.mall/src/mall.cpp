@@ -116,7 +116,7 @@ inline void hst_mall::credit_referrer(const asset& total, const user_t& user, co
 	update_share_cache(direct_referrer);
 	_dbc.set( direct_referrer );
 
-	if (direct_referrer.owned_shops.count(shop.id) == 0) { //none-shop-owner referrer
+	if (direct_referrer.owned_shops.empty()) { //none-shop-owner referrer
 		_gstate.platform_share.lucky_draw_share += share6;
 		return;
 	}
