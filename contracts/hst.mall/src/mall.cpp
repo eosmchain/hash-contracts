@@ -368,6 +368,70 @@ inline void hst_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
 	CHECK( !_is_today(last_rewarded_at), "done" ) //check if the particular category is rewarded
 }
 
+
+void hst_mall::_log_reward(const name& account, const reward_type_t &reward_type, const asset& reward_quant, const time_point_sec& reward_time) {
+	auto reward = reward_t::tbl_t(_self, _self.value);
+
+	reward.emplace(_self, [&](auto& row) {
+		row.account 				= account;
+		row.reward_type 			= reward_type;
+		row.reward_quantity			= reward_quant;
+		row.rewarded_at 			= reward_time;
+	});
+}
+
+bool hst_mall::_reward_shop(const uint64_t& shop_id) {
+	shop_t shop(shop_id);
+	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
+	CHECK( !_is_today(shop.updated_at), "shop sunshine reward already executed" )
+
+	if (shop.top_rewarded_count == 0) {
+		shop.share_cache = shop.share;
+		shop.share.reset();
+	}
+
+	spending_t::tbl_t spends(_self, _self.value);
+	auto spend_idx = spends.get_index<"shopspends"_n>();
+	auto spend_key = shop.last_sunshine_reward_spend_idx.get_index();
+	auto lower_itr = spend_idx.lower_bound( spend_key );
+	auto upper_itr = spend_idx.upper_bound( spend_key );
+	// auto itr = upper_itr;
+	auto itr = lower_itr;
+	auto now = time_point_sec( current_time_point() );
+
+	for (uint8_t step = 0; itr != upper_itr && itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
+		if (itr->shop_id != shop_id) break; //already iterate all spends within the given shop
+
+		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
+		auto share_cache = shop.share_cache;
+		auto spending_share_cache = itr->share_cache;
+		auto sunshine_quant = share_cache.sunshine_share * spending_share_cache.total_spending.amount / share_cache.total_spending.amount;
+		user_t user(itr->customer);
+		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
+		TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "shop sunshine reward" )  /// sunshine reward
+		_log_reward( user.account, SHOP_SUNSHINE_REWARD, sunshine_quant, now);
+
+		auto quant_avg = share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
+		if (shop.top_rewarded_count++ < shop.top_reward_count) {
+			TRANSFER( _cstate.mall_bank, user.account, quant_avg, "shop top reward" ) /// shop top reward
+			_log_reward( user.account, SHOP_TOP_REWARD, quant_avg, now);
+		}
+	}
+
+	if (itr == spend_idx.end() || itr->shop_id != shop_id) {
+		shop.share_cache.reset();
+		shop.top_rewarded_count 			= 0;
+		// shop.last_sunshine_reward_spend_idx = uint256_default;
+		// shop.last_top_reward_spend_idx 		= uint256_default;
+		shop.updated_at 					= now;
+
+		_dbc.set( shop );
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * Usage: to reward shop spending for all shops
  */
@@ -403,8 +467,11 @@ ACTION hst_mall::rewardcerts() {
 	certification_t::tbl_t certifications(_self, _self.value);
 	auto itr = certifications.begin();
 	uint8_t step = 0;
+	auto now = time_point_sec( current_time_point() );
+
 	for (; itr != certifications.end() && step < MAX_STEP; step++) {
 		TRANSFER( _cstate.mall_bank, itr->user, quant, "cert reward" )
+		_log_reward( itr->user, NEW_CERT_REWARD, quant, now);
 
 		itr = certifications.erase(itr); //remove it after rewarding
 		_gstate2.last_certification_reward_step++;
@@ -413,7 +480,7 @@ ACTION hst_mall::rewardcerts() {
 	if (itr == certifications.end() || step == _gstate.platform_share_cache.certified_user_count) {
 		_gstate.platform_share.certified_user_count = 0;
 		_gstate2.last_certification_reward_step = 0;
-		_gstate2.last_certification_rewarded_at = time_point_sec( current_time_point() );
+		_gstate2.last_certification_rewarded_at = now;
 		return;
 	}
 
@@ -430,11 +497,13 @@ ACTION hst_mall::rewardptops() {
 	auto user_idx = users.get_index<"totalshare"_n>();
 	auto itr = user_idx.upper_bound(_gstate2.last_platform_top_reward_id);
 	auto quant_avg = _gstate.platform_share_cache.top_share / _cstate.platform_top_count;
+	auto now = time_point_sec( current_time_point() );
 
 	for (uint8_t step = 0; itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
 		if (_gstate2.last_platform_top_reward_step++ == _cstate.platform_top_count) break; // top-1000 reward
 
 		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
+		_log_reward( itr->account, NEW_CERT_REWARD, quant_avg, now);
 
 		_gstate2.last_platform_top_reward_id = itr->by_total_share();
 	}
@@ -442,7 +511,7 @@ ACTION hst_mall::rewardptops() {
 	if (itr == user_idx.end() || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
 		_gstate2.last_platform_top_reward_step 		= 0;
 		_gstate2.last_platform_top_reward_id		= 0;
-		_gstate2.last_platform_reward_finished_at 	= time_point_sec( current_time_point() );
+		_gstate2.last_platform_reward_finished_at 	= now;
 		return;
 	}
 
@@ -606,54 +675,6 @@ asset hst_mall::_withdraw_shop_referral(user_t& user) {
 	TRANSFER( _cstate.mall_bank, to, quant - platform_fees, "shop ref reward" )
 
 	return quant;
-}
-
-bool hst_mall::_reward_shop(const uint64_t& shop_id) {
-	shop_t shop(shop_id);
-	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	CHECK( !_is_today(shop.updated_at), "shop sunshine reward already executed" )
-
-	if (shop.top_rewarded_count == 0) {
-		shop.share_cache = shop.share;
-		shop.share.reset();
-	}
-
-	spending_t::tbl_t spends(_self, _self.value);
-	auto spend_idx = spends.get_index<"shopspends"_n>();
-	auto spend_key = shop.last_sunshine_reward_spend_idx.get_index();
-	auto lower_itr = spend_idx.lower_bound( spend_key );
-	auto upper_itr = spend_idx.upper_bound( spend_key );
-	// auto itr = upper_itr;
-	auto itr = lower_itr;
-	for (uint8_t step = 0; itr != upper_itr && itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
-		if (itr->shop_id != shop_id) break; //already iterate all spends within the given shop
-
-		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
-		auto share_cache = shop.share_cache;
-		auto spending_share_cache = itr->share_cache;
-		auto sunshine_quant = share_cache.sunshine_share * spending_share_cache.total_spending.amount / share_cache.total_spending.amount;
-		user_t user(itr->customer);
-		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
-		TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "shop sunshine reward" )  /// sunshine reward
-
-		auto quant_avg = share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
-		if (shop.top_rewarded_count++ < shop.top_reward_count) {
-			TRANSFER( _cstate.mall_bank, user.account, quant_avg, "shop top reward" ) /// shop top reward
-		}
-	}
-
-	if (itr == spend_idx.end() || itr->shop_id != shop_id) {
-		shop.share_cache.reset();
-		shop.top_rewarded_count 			= 0;
-		// shop.last_sunshine_reward_spend_idx = uint256_default;
-		// shop.last_top_reward_spend_idx 		= uint256_default;
-		shop.updated_at 					= time_point_sec( current_time_point() );
-
-		_dbc.set( shop );
-		return true;
-	}
-
-	return false;
 }
 
 // bool hst_mall::update_all_caches() {

@@ -176,6 +176,36 @@ struct CONTRACT_TBL user_t {
                                 (created_at)(updated_at) )
 };
 
+typedef name reward_type_t;
+static reward_type_t NEW_CERT_REWARD        = "newcert"_n;
+static reward_type_t SHOP_SUNSHINE_REWARD   = "shopsunshine"_n;
+static reward_type_t SHOP_TOP_REWARD        = "shoptop"_n;
+static reward_type_t PLATFORM_TOP_REWARD    = "platformtop"_n;
+
+struct CONTRACT_TBL reward_t {
+    name account;
+    reward_type_t reward_type;
+    asset reward_quantity;
+    time_point_sec rewarded_at;
+
+    reward_t(){}
+    reward_t(const name& a): account(a) {}
+ 
+    uint64_t by_reward_time() const { return rewarded_at.sec_since_epoch(); }
+    uint128_t by_account_reward_time() const { 
+        return (uint128_t) account.value << 2 | rewarded_at.sec_since_epoch();
+    }
+
+    uint64_t scope() const { return 0; }
+    uint64_t primary_key() const { return account.value; }
+    typedef eosio::multi_index<"rewards"_n, reward_t,
+        indexed_by<"rewardat"_n, const_mem_fun<reward_t, uint64_t, &reward_t::by_reward_time> >,
+        indexed_by<"acctrewardat"_n, const_mem_fun<reward_t, uint128_t, &reward_t::by_account_reward_time>  >
+    > tbl_t;
+
+    EOSLIB_SERIALIZE( reward_t, (account)(reward_type)(reward_quantity)(rewarded_at) )
+};
+
 struct shop_share_t {
     asset total_spending                    = asset(0, HST_SYMBOL); //TODO: remove in release
     asset day_spending                      = asset(0, HST_SYMBOL); //TODO: remove in release

@@ -92,6 +92,8 @@ namespace hst {
          inline asset _withdraw_customer_referral(user_t& user);
          inline asset _withdraw_shop_referral(user_t& user);
 
+         inline void _log_reward(const name& account, const reward_type_t &reward_type, const asset& reward_quant, const time_point_sec& reward_time);
+
          inline void credit_user(const asset& total, user_t& user, const shop_t& shop, const time_point_sec& now);
          inline void credit_shop(const asset& total, shop_t& shop, const time_point_sec& now);
          inline void credit_certified(const asset& total);
