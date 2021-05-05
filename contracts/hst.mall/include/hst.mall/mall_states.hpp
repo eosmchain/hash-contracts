@@ -165,7 +165,7 @@ struct CONTRACT_TBL user_t {
         return (uint128_t (std::numeric_limits<uint64_t>::max() - total.amount)) << 64 | account.value; 
     }
 
-    uint128_t by_cache_update() const { return (uint128_t) share_cache_updated ? 1 : 0 | account.value; }
+    uint128_t by_cache_update() const { return (uint128_t) (share_cache_updated ? 1 : 0) << 64 | account.value; }
 
     typedef eosio::multi_index<"users"_n, user_t,
         indexed_by<"totalshare"_n, const_mem_fun<user_t, uint128_t, &user_t::by_total_share> >,
@@ -193,7 +193,7 @@ struct CONTRACT_TBL reward_t {
  
     uint64_t by_reward_time() const { return rewarded_at.sec_since_epoch(); }
     uint128_t by_account_reward_time() const { 
-        return (uint128_t) account.value << 2 | rewarded_at.sec_since_epoch();
+        return (uint128_t) account.value << 64 | rewarded_at.sec_since_epoch();
     }
 
     uint64_t scope() const { return 0; }
@@ -259,7 +259,7 @@ struct CONTRACT_TBL shop_t {
     uint64_t primary_key() const { return id; }
     uint64_t by_pid() const { return pid; }
     uint64_t by_referral() const { return referral_account.value; }
-    uint128_t by_cache_update() const { return (uint128_t) share_cache_updated ? 1 : 0 | id; }
+    uint128_t by_cache_update() const { return (uint128_t) (share_cache_updated ? 1 : 0) << 1 | id; }
 
     typedef eosio::multi_index< "shops"_n, shop_t,
         indexed_by<"parentid"_n, const_mem_fun<shop_t, uint64_t, &shop_t::by_pid>     >,
@@ -302,7 +302,7 @@ struct CONTRACT_TBL spending_t {
 
     // ///to derive shop top 10 and all
     uint256_t by_shop_day_spending() const  { return uint256_t::make_from_word_sequence<uint64_t>(shop_id, std::numeric_limits<uint64_t>::max() - share_cache.day_spending.amount, id, 0ULL); }
-    uint128_t by_cache_update() const { return (uint128_t) share_cache_updated ? 1 : 0 | id; }
+    uint128_t by_cache_update() const { return (uint128_t) (share_cache_updated ? 1 : 0) << 64 | id; }
 
     typedef eosio::multi_index
     < "spends"_n, spending_t,
