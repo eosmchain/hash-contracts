@@ -493,6 +493,8 @@ ACTION hst_mall::rewardcerts() {
 ACTION hst_mall::rewardptops() {
 	_check_rewarded( _gstate2.last_platform_reward_finished_at );
 
+	check( _gstate.platform_share_cache.top_share.amount > 0, "none top share" );
+
 	user_t::tbl_t users(_self, _self.value);
 	auto user_idx = users.get_index<"totalshare"_n>();
 	auto itr = user_idx.upper_bound(_gstate2.last_platform_top_reward_id);
