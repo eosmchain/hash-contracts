@@ -440,20 +440,21 @@ ACTION hst_mall::rewardshops() {
 
 	shop_t::tbl_t shops(_self, _self.value);
 	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
-	for (uint8_t step = 0; itr != shops.end() && step < MAX_STEP; itr++, step++) {
+	uint8_t step = 0; 
+	
+	for (;itr != shops.end() && step < MAX_STEP; itr++, step++) {
 		if (!_reward_shop(itr->id)) return; // shop not finished, needs to re-enter in next round of this
 
 		_gstate2.last_reward_shop_id = itr->id;			
 	}
+	if (step == 0) 
+		CHECK( false, "done" )
 
 	if (itr == shops.end()) {
 		_gstate2.last_reward_shop_id = 0;
 		_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
 		_gstate.executing = false;
-		return;
 	}
-
-	check(false, "done");
 }
 
 /**
@@ -466,8 +467,8 @@ ACTION hst_mall::rewardcerts() {
 	auto quant = _gstate.platform_share_cache.certified_user_share / _gstate.platform_share_cache.certified_user_count;
 	certification_t::tbl_t certifications(_self, _self.value);
 	auto itr = certifications.begin();
-	uint8_t step = 0;
 	auto now = time_point_sec( current_time_point() );
+	uint8_t step = 0;
 
 	for (; itr != certifications.end() && step < MAX_STEP; step++) {
 		TRANSFER( _cstate.mall_bank, itr->user, quant, "cert reward" )
@@ -476,15 +477,14 @@ ACTION hst_mall::rewardcerts() {
 		itr = certifications.erase(itr); //remove it after rewarding
 		_gstate2.last_certification_reward_step++;
 	}
+	if (step == 0) 
+		CHECK( false, "done" )
 
 	if (itr == certifications.end() || step == _gstate.platform_share_cache.certified_user_count) {
 		_gstate.platform_share.certified_user_count = 0;
 		_gstate2.last_certification_reward_step = 0;
 		_gstate2.last_certification_rewarded_at = now;
-		return;
 	}
-
-	CHECK( false, "done" );
 }
 
 /**
@@ -500,8 +500,9 @@ ACTION hst_mall::rewardptops() {
 	auto itr = user_idx.upper_bound(_gstate2.last_platform_top_reward_id);
 	auto quant_avg = _gstate.platform_share_cache.top_share / _cstate.platform_top_count;
 	auto now = time_point_sec( current_time_point() );
+	uint8_t step = 0;
 
-	for (uint8_t step = 0; itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
+	for (;itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
 		if (_gstate2.last_platform_top_reward_step++ == _cstate.platform_top_count) break; // top-1000 reward
 
 		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
@@ -509,15 +510,14 @@ ACTION hst_mall::rewardptops() {
 
 		_gstate2.last_platform_top_reward_id = itr->by_total_share();
 	}
+	if (step == 0) 
+		CHECK( false, "done" )
 
 	if (itr == user_idx.end() || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
 		_gstate2.last_platform_top_reward_step 		= 0;
 		_gstate2.last_platform_top_reward_id		= 0;
 		_gstate2.last_platform_reward_finished_at 	= now;
-		return;
 	}
-
-	CHECK( false, "done" );
 }
 
 /**
