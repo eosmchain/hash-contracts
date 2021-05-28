@@ -441,20 +441,22 @@ ACTION hst_mall::rewardshops() {
 	shop_t::tbl_t shops(_self, _self.value);
 	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
 	uint8_t step = 0; 
-	
+
 	for (;itr != shops.end() && step < MAX_STEP; itr++, step++) {
 		if (!_reward_shop(itr->id)) return; // shop not finished, needs to re-enter in next round of this
 
 		_gstate2.last_reward_shop_id = itr->id;			
 	}
-	if (step == 0) 
-		CHECK( false, "done" )
 
-	if (itr == shops.end()) {
+	if (step != 0 && itr == shops.end()) {
 		_gstate2.last_reward_shop_id = 0;
 		_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
 		_gstate.executing = false;
+
+		return;
 	}
+
+	CHECK( false, "done" )
 }
 
 /**
@@ -477,14 +479,16 @@ ACTION hst_mall::rewardcerts() {
 		itr = certifications.erase(itr); //remove it after rewarding
 		_gstate2.last_certification_reward_step++;
 	}
-	if (step == 0) 
-		CHECK( false, "done" )
 
-	if (itr == certifications.end() || step == _gstate.platform_share_cache.certified_user_count) {
+	if ((step != 0 && itr == certifications.end()) || step == _gstate.platform_share_cache.certified_user_count) {
 		_gstate.platform_share.certified_user_count = 0;
 		_gstate2.last_certification_reward_step = 0;
 		_gstate2.last_certification_rewarded_at = now;
+
+		return;
 	}
+
+	CHECK( false, "done" )
 }
 
 /**
@@ -510,14 +514,16 @@ ACTION hst_mall::rewardptops() {
 
 		_gstate2.last_platform_top_reward_id = itr->by_total_share();
 	}
-	if (step == 0) 
-		CHECK( false, "done" )
 
-	if (itr == user_idx.end() || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
+	if ((step != 0 && itr == user_idx.end()) || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
 		_gstate2.last_platform_top_reward_step 		= 0;
 		_gstate2.last_platform_top_reward_id		= 0;
 		_gstate2.last_platform_reward_finished_at 	= now;
+
+		return;
 	}
+
+	CHECK( false, "done" )
 }
 
 /**
