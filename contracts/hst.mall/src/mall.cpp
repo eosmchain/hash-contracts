@@ -387,7 +387,6 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 	if (shop.top_rewarded_count == 0) {
 		shop.share_cache = shop.share;
-		shop.share.reset();
 	}
 
 	spending_t::tbl_t spends(_self, _self.value);
@@ -398,8 +397,9 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	// auto itr = upper_itr;
 	auto itr = lower_itr;
 	auto now = time_point_sec( current_time_point() );
+	uint8_t step = 0;
 
-	for (uint8_t step = 0; itr != upper_itr && itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
+	for (; itr != upper_itr && itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
 		if (itr->shop_id != shop_id) break; //already iterate all spends within the given shop
 
 		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
@@ -418,13 +418,20 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		}
 	}
 
-	if (itr == spend_idx.end() || itr->shop_id != shop_id) {
+	if (step > 0 && itr == spend_idx.end()) {
+		shop.share.day_spending 	-= shop.share_cache.day_spending;
+		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
+		shop.share.top_share		-= shop.share_cache.top_share;
+		
+		shop.top_rewarded_count 	= 0;
+		shop.updated_at 			= now;
 		shop.share_cache.reset();
-		shop.top_rewarded_count 			= 0;
-		// shop.last_sunshine_reward_spend_idx = uint256_default;
-		// shop.last_top_reward_spend_idx 		= uint256_default;
-		shop.updated_at 					= now;
 
+		_dbc.set( shop );
+		return true;
+	}
+
+	if (step > 0) {
 		_dbc.set( shop );
 		return true;
 	}
@@ -442,13 +449,13 @@ ACTION hst_mall::rewardshops() {
 	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
 	uint8_t step = 0; 
 
-	for (;itr != shops.end() && step < MAX_STEP; itr++, step++) {
-		if (!_reward_shop(itr->id)) return; // shop not finished, needs to re-enter in next round of this
+	for (; itr != shops.end() && step < MAX_STEP; itr++, step++) {
+		if (!_reward_shop(itr->id)) return; // this shop not finished, needs to re-enter in next round of this
 
-		_gstate2.last_reward_shop_id = itr->id;			
+		_gstate2.last_reward_shop_id = itr->id;
 	}
 
-	if (step != 0 && itr == shops.end()) {
+	if (step > 0) {
 		_gstate2.last_reward_shop_id = 0;
 		_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
 		_gstate.executing = false;
@@ -480,13 +487,18 @@ ACTION hst_mall::rewardcerts() {
 		_gstate2.last_certification_reward_step++;
 	}
 
-	if ((step != 0 && itr == certifications.end()) || step == _gstate.platform_share_cache.certified_user_count) {
-		_gstate.platform_share.certified_user_count = 0;
-		_gstate2.last_certification_reward_step = 0;
-		_gstate2.last_certification_rewarded_at = now;
+	if (_gstate2.last_certification_reward_step == _gstate.platform_share_cache.certified_user_count) {
+		_gstate.platform_share.certified_user_share 		-= _gstate.platform_share_cache.certified_user_share;
+		_gstate.platform_share_cache.certified_user_share 	= _gstate.platform_share.certified_user_share;
+		_gstate.platform_share.certified_user_count 		= 0;
+		_gstate2.last_certification_reward_step 			= 0;
+		_gstate2.last_certification_rewarded_at 			= now;
 
 		return;
 	}
+
+	if (step > 0)
+		return;
 
 	CHECK( false, "done" )
 }
@@ -508,20 +520,28 @@ ACTION hst_mall::rewardptops() {
 
 	for (;itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
 		if (_gstate2.last_platform_top_reward_step++ == _cstate.platform_top_count) break; // top-1000 reward
-
+		
 		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
 		_log_reward( itr->account, NEW_CERT_REWARD, quant_avg, now);
 
 		_gstate2.last_platform_top_reward_id = itr->by_total_share();
 	}
 
-	if ((step != 0 && itr == user_idx.end()) || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
+	if (_gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
+		_gstate.platform_share.top_share 			-= _gstate.platform_share_cache.top_share;
+		_gstate.platform_share.total_share 			-= _gstate.platform_share_cache.top_share;
+		_gstate.platform_share_cache.top_share 		= _gstate.platform_share.top_share;
+		_gstate.platform_share_cache.total_share 	= _gstate.platform_share.total_share;
+
 		_gstate2.last_platform_top_reward_step 		= 0;
 		_gstate2.last_platform_top_reward_id		= 0;
 		_gstate2.last_platform_reward_finished_at 	= now;
 
 		return;
 	}
+	
+	if (step > 0) 
+		return; //needs at least one more round
 
 	CHECK( false, "done" )
 }
