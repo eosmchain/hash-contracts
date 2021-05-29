@@ -518,18 +518,19 @@ ACTION hst_mall::rewardptops() {
 	auto now = time_point_sec( current_time_point() );
 	uint8_t step = 0;
 
-	for (;itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
+	for (; itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
 		if (_gstate2.last_platform_top_reward_step++ == _cstate.platform_top_count) break; // top-1000 reward
-		
+		if (itr->share_cache.total_share().amount == 0) continue;
+
 		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
 		_log_reward( itr->account, NEW_CERT_REWARD, quant_avg, now);
 
 		_gstate2.last_platform_top_reward_id = itr->by_total_share();
 	}
 
-	if (_gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
+	if ((step > 0 && itr == user_idx.end()) || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
 		_gstate.platform_share.top_share 			-= _gstate.platform_share_cache.top_share;
-		_gstate.platform_share.total_share 			-= _gstate.platform_share_cache.top_share;
+		_gstate.platform_share.total_share 			-= _gstate.platform_share_cache.total_share;
 		_gstate.platform_share_cache.top_share 		= _gstate.platform_share.top_share;
 		_gstate.platform_share_cache.total_share 	= _gstate.platform_share.total_share;
 
