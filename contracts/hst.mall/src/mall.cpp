@@ -418,7 +418,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		}
 	}
 
-	if (step > 0 && itr == spend_idx.end()) {
+	if (step > 0 || itr == spend_idx.end()) {
 		shop.share.day_spending 	-= shop.share_cache.day_spending;
 		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
 		shop.share.top_share		-= shop.share_cache.top_share;
