@@ -390,6 +390,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 	spending_t::tbl_t spends(_self, _self.value);
 	auto spend_idx = spends.get_index<"shopspends"_n>();
+	shop.last_sunshine_reward_spend_idx.shop_id = shop_id;
 	auto spend_key = shop.last_sunshine_reward_spend_idx.get_index();
 	auto lower_itr = spend_idx.lower_bound( spend_key );
 	auto upper_itr = spend_idx.upper_bound( spend_key );
@@ -417,7 +418,6 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		}
 	}
 
-	check( false, "step = " + to_string(step) + ", ")
 	if (step > 0 && itr == spend_idx.end()) {
 		shop.share.day_spending 	-= shop.share_cache.day_spending;
 		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
