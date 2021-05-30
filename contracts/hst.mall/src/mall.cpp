@@ -431,11 +431,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		return true;
 	}
 
-	if (step > 0) {
-		_dbc.set( shop );
-		return true;
-	}
-
+	_dbc.set( shop );
 	return false;
 }
 
