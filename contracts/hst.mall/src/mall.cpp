@@ -385,9 +385,8 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 	CHECK( !_is_today(shop.updated_at), "shop sunshine reward already executed" )
 
-	if (shop.top_rewarded_count == 0) {
+	if (shop.top_rewarded_count == 0)
 		shop.share_cache = shop.share;
-	}
 
 	spending_t::tbl_t spends(_self, _self.value);
 	auto spend_idx = spends.get_index<"shopspends"_n>();
@@ -418,6 +417,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		}
 	}
 
+	check( false, "step = " + to_string(step) + ", ")
 	if (step > 0 && itr == spend_idx.end()) {
 		shop.share.day_spending 	-= shop.share_cache.day_spending;
 		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
