@@ -183,6 +183,7 @@ static reward_type_t SHOP_TOP_REWARD        = "shoptop"_n;
 static reward_type_t PLATFORM_TOP_REWARD    = "platformtop"_n;
 
 struct CONTRACT_TBL reward_t {
+    uint64_t id;
     name account;
     reward_type_t reward_type;
     asset reward_quantity;
@@ -197,7 +198,7 @@ struct CONTRACT_TBL reward_t {
     }
 
     uint64_t scope() const { return 0; }
-    uint64_t primary_key() const { return account.value; }
+    uint64_t primary_key() const { return id; }
     typedef eosio::multi_index<"rewards"_n, reward_t,
         indexed_by<"rewardat"_n, const_mem_fun<reward_t, uint64_t, &reward_t::by_reward_time> >,
         indexed_by<"acctrewardat"_n, const_mem_fun<reward_t, uint128_t, &reward_t::by_account_reward_time>  >

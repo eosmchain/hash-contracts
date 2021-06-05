@@ -304,8 +304,12 @@ void hst_mall::_init() {
 
 ACTION hst_mall::init() {
 	require_auth(_self);
-	check(false, "init disabled");
+	// check(false, "init disabled");
 
+	// auto rewards = reward_t::tbl_t(_self, _self.value);
+	// for (auto itr = rewards.begin(); itr != rewards.end();) {
+	// 	itr = rewards.erase(itr);
+	// }
 	// user_tbl_t users(_self, _self.value);
 	
 	// for (auto itr = users.begin(); itr != users.end();) {
@@ -326,7 +330,7 @@ ACTION hst_mall::init() {
 
 	// _cstate.allocation_ratios[2] = 800;
 	// _cstate.allocation_ratios[3] = 500;
-	_init();
+	// _init();
 	// _cstate.withdraw_mature_days = 1;
 
 	// spending_t spend(1);
@@ -373,6 +377,7 @@ void hst_mall::_log_reward(const name& account, const reward_type_t &reward_type
 	auto reward = reward_t::tbl_t(_self, _self.value);
 
 	reward.emplace(_self, [&](auto& row) {
+		row.id						= reward.available_primary_key();
 		row.account 				= account;
 		row.reward_type 			= reward_type;
 		row.reward_quantity			= reward_quant;
@@ -399,14 +404,25 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	auto now = time_point_sec( current_time_point() );
 	uint8_t step = 0;
 	
+	auto share_cache = shop.share_cache;
+	if (share_cache.total_spending.amount == 0) {
+		// check(false, "zero shop total spending");
+		return true;
+	}
+
 	bool processed = false;
 	for (; itr != upper_itr && itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
 		if (itr->shop_id != shop_id) break; //already iterate all spends within the given shop
 
 		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
-		auto share_cache = shop.share_cache;
+		
 		auto spending_share_cache = itr->share_cache;
+		if (spending_share_cache.total_spending.amount == 0) {
+			check(false, "zero user total spending");
+		}
+
 		auto sunshine_quant = share_cache.sunshine_share * spending_share_cache.total_spending.amount / share_cache.total_spending.amount;
+
 		user_t user(itr->customer);
 		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
 		TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "shop sunshine reward" )  /// sunshine reward
@@ -421,9 +437,9 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	}
 
 	if (!processed)
-		return true;
+		return true;	// means empy and no-need for rentrance
 
-	if (itr == spend_idx.end()) {
+	if (itr == spend_idx.end()) { //means finished for this shop
 		shop.share.day_spending 	-= shop.share_cache.day_spending;
 		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
 		shop.share.top_share		-= shop.share_cache.top_share;
@@ -455,6 +471,8 @@ ACTION hst_mall::rewardshops() {
 
 		_gstate2.last_reward_shop_id = itr->id;
 	}
+
+	// check(false, "_gstate2.last_reward_shop_id = " + to_string(_gstate2.last_reward_shop_id));
 
 	_gstate2.last_reward_shop_id = 0;
 	_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
@@ -508,6 +526,7 @@ ACTION hst_mall::rewardptops() {
 	auto now = time_point_sec( current_time_point() );
 	uint8_t step = 0;
 
+	bool processed = false;
 	for (; itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
 		if (_gstate2.last_platform_top_reward_step++ == _cstate.platform_top_count) break; // top-1000 reward
 		if (itr->share_cache.total_share().amount == 0) break; //sequential and it's the end
@@ -515,6 +534,7 @@ ACTION hst_mall::rewardptops() {
 		// check(false, "step = " + to_string(step) + ", user: " + itr->account.to_string());
 
 		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
+		check(false, "stop here");
 		_log_reward( itr->account, PLATFORM_TOP_REWARD, quant_avg, now);
 
 		_gstate2.last_platform_top_reward_id = itr->by_total_share();
