@@ -535,17 +535,14 @@ ACTION hst_mall::rewardptops() {
 
 		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
 		_log_reward( itr->account, PLATFORM_TOP_REWARD, quant_avg, now);
-
-		check(false, "stop after inserting log_reward");
 		_gstate2.last_platform_top_reward_id = itr->by_total_share();
 
 		processed = true;
 	}
 
-	if (	step == 0 
-		|| (step > 0 && itr == user_idx.end()) 
-		|| _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
+	CHECK( processed, "none processed" )
 
+	if ( itr == user_idx.end() || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
 		_gstate.platform_share.top_share 			-= _gstate.platform_share_cache.top_share;
 		_gstate.platform_share.total_share 			-= _gstate.platform_share_cache.total_share;
 		_gstate.platform_share_cache.top_share 		= _gstate.platform_share.top_share;

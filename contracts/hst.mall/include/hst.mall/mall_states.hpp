@@ -204,7 +204,7 @@ struct CONTRACT_TBL reward_t {
         indexed_by<"acctrewardat"_n, const_mem_fun<reward_t, uint128_t, &reward_t::by_account_reward_time>  >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( reward_t, (account)(reward_type)(reward_quantity)(rewarded_at) )
+    EOSLIB_SERIALIZE( reward_t, (id)(account)(reward_type)(reward_quantity)(rewarded_at) )
 };
 
 struct shop_share_t {
