@@ -304,7 +304,7 @@ void hst_mall::_init() {
 
 ACTION hst_mall::init() {
 	require_auth(_self);
-	// check(false, "init disabled");
+	check(false, "init disabled");
 
 	// auto rewards = reward_t::tbl_t(_self, _self.value);
 	// for (auto itr = rewards.begin(); itr != rewards.end();) {
