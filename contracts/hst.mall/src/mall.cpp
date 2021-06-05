@@ -370,7 +370,7 @@ inline void hst_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
 
 
 void hst_mall::_log_reward(const name& account, const reward_type_t &reward_type, const asset& reward_quant, const time_point_sec& reward_time) {
-	auto reward = reward_t::tbl_t(_self, _self.value);
+	auto reward = reward_t::tbl_t(_self, account.value);
 
 	reward.emplace(_self, [&](auto& row) {
 		row.account 				= account;
@@ -451,15 +451,9 @@ ACTION hst_mall::rewardshops() {
 		_gstate2.last_reward_shop_id = itr->id;
 	}
 
-	if (step > 0) {
-		_gstate2.last_reward_shop_id = 0;
-		_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
-		_gstate.executing = false;
-
-		return;
-	}
-
-	CHECK( false, "done" )
+	_gstate2.last_reward_shop_id = 0;
+	_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
+	_gstate.executing = false;
 }
 
 /**
@@ -483,20 +477,15 @@ ACTION hst_mall::rewardcerts() {
 		_gstate2.last_certification_reward_step++;
 	}
 
-	if (_gstate2.last_certification_reward_step == _gstate.platform_share_cache.certified_user_count) {
+	if (step == 0 || 
+		_gstate2.last_certification_reward_step == _gstate.platform_share_cache.certified_user_count) {
+			
 		_gstate.platform_share.certified_user_share 		-= _gstate.platform_share_cache.certified_user_share;
 		_gstate.platform_share_cache.certified_user_share 	= _gstate.platform_share.certified_user_share;
 		_gstate.platform_share.certified_user_count 		= 0;
 		_gstate2.last_certification_reward_step 			= 0;
 		_gstate2.last_certification_rewarded_at 			= now;
-
-		return;
 	}
-
-	if (step > 0)
-		return;
-
-	CHECK( false, "done" )
 }
 
 /**
@@ -504,27 +493,32 @@ ACTION hst_mall::rewardcerts() {
  */
 ACTION hst_mall::rewardptops() {
 	_check_rewarded( _gstate2.last_platform_reward_finished_at );
-
 	check( _gstate.platform_share_cache.top_share.amount > 0, "none top share" );
 
 	user_t::tbl_t users(_self, _self.value);
 	auto user_idx = users.get_index<"totalshare"_n>();
 	auto itr = user_idx.upper_bound(_gstate2.last_platform_top_reward_id);
+	check( _cstate.platform_top_count > 0, "Err: _cstate.platform_top_count = 0" );
 	auto quant_avg = _gstate.platform_share_cache.top_share / _cstate.platform_top_count;
 	auto now = time_point_sec( current_time_point() );
 	uint8_t step = 0;
 
 	for (; itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
 		if (_gstate2.last_platform_top_reward_step++ == _cstate.platform_top_count) break; // top-1000 reward
-		if (itr->share_cache.total_share().amount == 0) continue;
+		if (itr->share_cache.total_share().amount == 0) break; //sequential and it's the end
+
+		// check(false, "step = " + to_string(step) + ", user: " + itr->account.to_string());
 
 		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
-		_log_reward( itr->account, NEW_CERT_REWARD, quant_avg, now);
+		_log_reward( itr->account, PLATFORM_TOP_REWARD, quant_avg, now);
 
 		_gstate2.last_platform_top_reward_id = itr->by_total_share();
 	}
 
-	if ((step > 0 && itr == user_idx.end()) || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
+	if (	step == 0 
+		|| (step > 0 && itr == user_idx.end()) 
+		|| _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
+
 		_gstate.platform_share.top_share 			-= _gstate.platform_share_cache.top_share;
 		_gstate.platform_share.total_share 			-= _gstate.platform_share_cache.total_share;
 		_gstate.platform_share_cache.top_share 		= _gstate.platform_share.top_share;
@@ -533,14 +527,7 @@ ACTION hst_mall::rewardptops() {
 		_gstate2.last_platform_top_reward_step 		= 0;
 		_gstate2.last_platform_top_reward_id		= 0;
 		_gstate2.last_platform_reward_finished_at 	= now;
-
-		return;
 	}
-	
-	if (step > 0) 
-		return; //needs at least one more round
-
-	CHECK( false, "done" )
 }
 
 /**
