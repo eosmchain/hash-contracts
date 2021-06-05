@@ -398,7 +398,8 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	auto itr = lower_itr;
 	auto now = time_point_sec( current_time_point() );
 	uint8_t step = 0;
-
+	
+	bool processed = false;
 	for (; itr != upper_itr && itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
 		if (itr->shop_id != shop_id) break; //already iterate all spends within the given shop
 
@@ -415,10 +416,11 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		if (shop.top_rewarded_count++ < shop.top_reward_count) {
 			TRANSFER( _cstate.mall_bank, user.account, quant_avg, "shop top reward" ) /// shop top reward
 			_log_reward( user.account, SHOP_TOP_REWARD, quant_avg, now);
+			processed = true;
 		}
 	}
 
-	if (step > 0 || itr == spend_idx.end()) {
+	if (processed && itr == spend_idx.end()) {
 		shop.share.day_spending 	-= shop.share_cache.day_spending;
 		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
 		shop.share.top_share		-= shop.share_cache.top_share;
