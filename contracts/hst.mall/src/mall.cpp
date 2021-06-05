@@ -534,10 +534,12 @@ ACTION hst_mall::rewardptops() {
 		// check(false, "step = " + to_string(step) + ", user: " + itr->account.to_string());
 
 		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
-		check(false, "stop here");
 		_log_reward( itr->account, PLATFORM_TOP_REWARD, quant_avg, now);
 
+		check(false, "stop after inserting log_reward");
 		_gstate2.last_platform_top_reward_id = itr->by_total_share();
+
+		processed = true;
 	}
 
 	if (	step == 0 
