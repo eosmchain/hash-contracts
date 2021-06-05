@@ -420,7 +420,10 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		}
 	}
 
-	if (processed && itr == spend_idx.end()) {
+	if (!processed)
+		return true;
+
+	if (itr == spend_idx.end()) {
 		shop.share.day_spending 	-= shop.share_cache.day_spending;
 		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
 		shop.share.top_share		-= shop.share_cache.top_share;
@@ -431,7 +434,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 		_dbc.set( shop );
 		return true;
-	}
+	} 
 
 	_dbc.set( shop );
 	return false;
