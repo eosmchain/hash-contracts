@@ -370,7 +370,7 @@ inline void hst_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
 
 
 void hst_mall::_log_reward(const name& account, const reward_type_t &reward_type, const asset& reward_quant, const time_point_sec& reward_time) {
-	auto reward = reward_t::tbl_t(_self, account.value);
+	auto reward = reward_t::tbl_t(_self, _self.value);
 
 	reward.emplace(_self, [&](auto& row) {
 		row.account 				= account;
