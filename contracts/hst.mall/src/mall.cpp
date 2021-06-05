@@ -527,11 +527,14 @@ ACTION hst_mall::rewardptops() {
 	uint8_t step = 0;
 
 	bool processed = false;
+	bool ended = false;
 	for (; itr != user_idx.end() && step < MAX_STEP; itr++, step++) {
-		if (_gstate2.last_platform_top_reward_step++ == _cstate.platform_top_count) break; // top-1000 reward
-		if (itr->share_cache.total_share().amount == 0) break; //sequential and it's the end
-
-		// check(false, "step = " + to_string(step) + ", user: " + itr->account.to_string());
+		_gstate2.last_platform_top_reward_step++;
+		if (_gstate2.last_platform_top_reward_step > _cstate.platform_top_count || 	// top-1000 reward
+			itr->share_cache.total_share().amount == 0) {							//sequential and it's the end
+			ended = true;
+			break; 
+		}
 
 		TRANSFER( _cstate.mall_bank, itr->account, quant_avg, "platform top reward" )
 		_log_reward( itr->account, PLATFORM_TOP_REWARD, quant_avg, now);
@@ -542,9 +545,9 @@ ACTION hst_mall::rewardptops() {
 
 	CHECK( processed, "none processed" )
 
-	if ( itr == user_idx.end() || _gstate2.last_platform_top_reward_step == _cstate.platform_top_count) {
+	if ( ended || itr == user_idx.end()) {
 		_gstate.platform_share.top_share 			-= _gstate.platform_share_cache.top_share;
-		_gstate.platform_share.total_share 			-= _gstate.platform_share_cache.total_share;
+		_gstate.platform_share.total_share 			-= _gstate.platform_share_cache.top_share;
 		_gstate.platform_share_cache.top_share 		= _gstate.platform_share.top_share;
 		_gstate.platform_share_cache.total_share 	= _gstate.platform_share.total_share;
 
