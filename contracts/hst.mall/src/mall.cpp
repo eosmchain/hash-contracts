@@ -311,36 +311,44 @@ ACTION hst_mall::init() {
 	require_auth(_self);
 
 	check(false, "init disabled");
+
+	// auto shops = shop_t::tbl_t(_self, _self.value);
+	// for (auto itr = shops.begin(); itr != shops.end(); itr++) {
+	// 	auto shop = shop_t(itr->id);
+	// 	_dbc.get(shop);
+	// 	shop.last_sunshine_reward_spend_idx.reset();
+	// 	_dbc.set(shop);
+	// }
 	
-	shop_t shop(1);
-	_dbc.get(shop);
-	shop.share.total_spending.amount = 1934550;
-	_dbc.set(shop);
+	// shop_t shop(1);
+	// _dbc.get(shop);
+	// shop.share.total_spending.amount = 1934550;
+	// _dbc.set(shop);
 
-	shop.id = 6;
-	_dbc.get(shop);
-	shop.share.total_spending.amount = 7200;
-	_dbc.set(shop);
+	// shop.id = 6;
+	// _dbc.get(shop);
+	// shop.share.total_spending.amount = 7200;
+	// _dbc.set(shop);
 	
-	shop.id = 17;
-	_dbc.get(shop);
-	shop.share.total_spending.amount = 669600;
-	_dbc.set(shop);
+	// shop.id = 17;
+	// _dbc.get(shop);
+	// shop.share.total_spending.amount = 669600;
+	// _dbc.set(shop);
 
-	shop.id = 5;
-	_dbc.get(shop);
-	shop.share.total_spending.amount = 133650;
-	_dbc.set(shop);
+	// shop.id = 5;
+	// _dbc.get(shop);
+	// shop.share.total_spending.amount = 133650;
+	// _dbc.set(shop);
 
-	shop.id = 41;
-	_dbc.get(shop);
-	shop.share.total_spending.amount = 27000;
-	_dbc.set(shop);
+	// shop.id = 41;
+	// _dbc.get(shop);
+	// shop.share.total_spending.amount = 27000;
+	// _dbc.set(shop);
 
-	shop.id = 43;
-	_dbc.get(shop);
-	shop.share.total_spending.amount = 50400;
-	_dbc.set(shop);
+	// shop.id = 43;
+	// _dbc.get(shop);
+	// shop.share.total_spending.amount = 50400;
+	// _dbc.set(shop);
 
 	// list<spending_t> new_spends;
 
