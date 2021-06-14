@@ -304,29 +304,30 @@ void hst_mall::_init() {
 
 ACTION hst_mall::init() {
 	require_auth(_self);
-	check(false, "init disabled");
+	// check(false, "init disabled");
 
-	// auto rewards = reward_t::tbl_t(_self, _self.value);
-	// for (auto itr = rewards.begin(); itr != rewards.end();) {
-	// 	itr = rewards.erase(itr);
-	// }
-	// user_tbl_t users(_self, _self.value);
-	
-	// for (auto itr = users.begin(); itr != users.end();) {
-	// 	user_t new_user(itr->account);
-	// 	_dbc.get(new_user);
+	list<spending_t> new_spends;
 
-    // 	new_user.referral_account = itr->referral_account;
-    // 	new_user.share = itr->share;
-    // 	new_user.share_cache = itr->share_cache;
-    // 	new_user.share_cache_updated = itr->share_cache_updated;
-    // 	new_user.created_at = itr->created_at;
-    // 	new_user.updated_at = itr->updated_at;
+	auto spends = spending_t::tbl_t(_self, _self.value);
+	for (auto itr = spends.begin(); itr != spends.end();) {
+		spending_t spend(itr->id);
+		_dbc.get(spend);
+		new_spends.push_back(spend);
 
-	// 	_dbc.set( new_user );
+		itr = spends.erase(itr);
+	}
 
-	// 	itr = users.erase(itr);
-	// }
+	for (auto spend : new_spends) {
+		spends.emplace(_self, [&](auto& row) {
+			row.id 						= spend.id;
+			row.shop_id 				= spend.shop_id;
+			row.customer 				= spend.customer;
+			row.share					= spend.share;
+			row.share_cache				= spend.share_cache;
+			row.share_cache_updated		= spend.share_cache_updated;
+			row.created_at 				= spend.created_at;
+		});
+	}
 
 	// _cstate.allocation_ratios[2] = 800;
 	// _cstate.allocation_ratios[3] = 500;
@@ -398,29 +399,30 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	shop.last_sunshine_reward_spend_idx.shop_id = shop_id;
 	auto spend_key = shop.last_sunshine_reward_spend_idx.get_index();
 	auto lower_itr = spend_idx.lower_bound( spend_key );
-	auto upper_itr = spend_idx.upper_bound( spend_key );
+	// auto upper_itr = spend_idx.upper_bound( spend_key );
 	// auto itr = upper_itr;
 	auto itr = lower_itr;
 	auto now = time_point_sec( current_time_point() );
-	uint8_t step = 0;
 	
 	auto share_cache = shop.share_cache;
-	if (share_cache.total_spending.amount == 0) {
-		// check(false, "zero shop total spending");
-		return true;
-	}
+	// if (share_cache.total_spending.amount == 0) { //FIXME: this has been discarded
+	// 	// check(false, "zero shop total spending");
+	// 	return true;
+	// }
+		
+	check(false, "itr->shop_id: " + to_string(itr->shop_id) + ", shop_id: " + to_string(shop_id));
 
 	bool processed = false;
-	for (; itr != upper_itr && itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
+	for (uint8_t step = 0; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
+
 		if (itr->shop_id != shop_id) break; //already iterate all spends within the given shop
+
+		check(false, "Entering here");
 
 		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
 		
 		auto spending_share_cache = itr->share_cache;
-		if (spending_share_cache.total_spending.amount == 0) {
-			check(false, "zero user total spending");
-		}
-
+		check(spending_share_cache.total_spending.amount > 0, "Err: zero user total spending");
 		auto sunshine_quant = share_cache.sunshine_share * spending_share_cache.total_spending.amount / share_cache.total_spending.amount;
 
 		user_t user(itr->customer);
@@ -460,18 +462,20 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
  * Usage: to reward shop spending for all shops
  */
 ACTION hst_mall::rewardshops() {
-	_check_rewarded( _gstate2.last_shops_rewarded_at );
+	// _check_rewarded( _gstate2.last_shops_rewarded_at );
 
 	shop_t::tbl_t shops(_self, _self.value);
 	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
 	uint8_t step = 0; 
 
+	string res = "";
 	for (; itr != shops.end() && step < MAX_STEP; itr++, step++) {
 		if (!_reward_shop(itr->id)) return; // this shop not finished, needs to re-enter in next round of this
 
+		res += " " + to_string(itr->id);
 		_gstate2.last_reward_shop_id = itr->id;
 	}
-
+	check(false, "shops: " + res);
 	// check(false, "_gstate2.last_reward_shop_id = " + to_string(_gstate2.last_reward_shop_id));
 
 	_gstate2.last_reward_shop_id = 0;

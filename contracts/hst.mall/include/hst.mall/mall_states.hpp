@@ -228,8 +228,12 @@ struct spend_index_t {
     spend_index_t() {}
     spend_index_t(const uint64_t& shid, const uint64_t& spid, const asset& sp): shop_id(shid), spending_id(spid), spending(sp) {}
 
-    uint256_t get_index() {
-        return uint256_t::make_from_word_sequence<uint64_t>(shop_id, std::numeric_limits<uint64_t>::max() - spending.amount, spending_id, 0ULL);
+    checksum256 get_index() {
+        return checksum256::make_from_word_sequence<uint64_t>(
+            shop_id, 
+            std::numeric_limits<uint64_t>::max() - spending.amount, 
+            spending_id, 
+            0ULL);
     }
 
     EOSLIB_SERIALIZE( spend_index_t, (shop_id)(spending_id)(spending) )
@@ -276,6 +280,8 @@ struct CONTRACT_TBL shop_t {
 struct spending_share_t {
     asset day_spending;     //accumulated for day(s), reset after reward
     asset total_spending;   //accumulated continuously, never reset
+
+    EOSLIB_SERIALIZE( spending_share_t, (day_spending)(total_spending) )
 };
 
 struct CONTRACT_TBL spending_t {
@@ -295,22 +301,27 @@ struct CONTRACT_TBL spending_t {
 
     ///to ensure uniquness
     uint128_t shop_customer_key() const { return ((uint128_t) shop_id) << 64 | customer.value; }
-    // ///to derive platform top 1000, across shops
-    // uint128_t by_total_spending() const { return (uint128_t (std::numeric_limits<uint64_t>::max() - share_cache.total_spending.amount)) << 64 | id; }
     
     ///to get spending records of a particular customer
     uint64_t by_customer_key() const { return customer.value; }
 
-    // ///to derive shop top 10 and all
-    uint256_t by_shop_day_spending() const  { return uint256_t::make_from_word_sequence<uint64_t>(shop_id, std::numeric_limits<uint64_t>::max() - share_cache.day_spending.amount, id, 0ULL); }
+    ///to derive shop top 10 and all
+    checksum256 by_shop_day_spending() const {
+        return checksum256::make_from_word_sequence<uint64_t>(
+            shop_id, 
+            std::numeric_limits<uint64_t>::max() - share_cache.day_spending.amount, 
+            id, 
+            0ULL); 
+    }
+
     uint128_t by_cache_update() const { return (uint128_t) (share_cache_updated ? 1 : 0) << 64 | id; }
 
     typedef eosio::multi_index
     < "spends"_n, spending_t,
-        indexed_by<"shopcustidx"_n, const_mem_fun<spending_t, uint128_t, &spending_t::shop_customer_key>    >,
-        indexed_by<"custidx"_n,     const_mem_fun<spending_t, uint64_t,  &spending_t::by_customer_key>      >,
-        indexed_by<"shopspends"_n,  const_mem_fun<spending_t, uint256_t, &spending_t::by_shop_day_spending> >,
-        indexed_by<"cacheupdt"_n,   const_mem_fun<spending_t, uint128_t, &spending_t::by_cache_update>      >
+        indexed_by<"shopcustidx"_n, const_mem_fun<spending_t, uint128_t,    &spending_t::shop_customer_key>    >,
+        indexed_by<"custidx"_n,     const_mem_fun<spending_t, uint64_t,     &spending_t::by_customer_key>      >,
+        indexed_by<"shopspends"_n,  const_mem_fun<spending_t, checksum256,  &spending_t::by_shop_day_spending> >,
+        indexed_by<"cacheupdt"_n,   const_mem_fun<spending_t, uint128_t,    &spending_t::by_cache_update>      >
     > tbl_t;
 
     EOSLIB_SERIALIZE( spending_t, (id)(shop_id)(customer)(share)(share_cache)(share_cache_updated)(created_at) )
