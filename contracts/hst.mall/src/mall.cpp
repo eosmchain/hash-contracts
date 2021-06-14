@@ -310,8 +310,7 @@ void hst_mall::_init() {
 ACTION hst_mall::init() {
 	require_auth(_self);
 
-
-	// check(false, "init disabled");
+	check(false, "init disabled");
 	
 	shop_t shop(1);
 	_dbc.get(shop);
@@ -433,31 +432,23 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 	spending_t::tbl_t spends(_self, _self.value);
 	auto spend_idx = spends.get_index<"shopspends"_n>();
-	shop.last_sunshine_reward_spend_idx.shop_id = shop_id;
-	auto spend_key = shop.last_sunshine_reward_spend_idx.get_first_index();
-	auto lower_itr = spend_idx.lower_bound( spend_key );
-	// auto upper_itr = spend_idx.upper_bound( spend_key );
-	// auto itr = upper_itr;
+	auto spend_key = (shop.last_sunshine_reward_spend_idx.shop_id == 0) ? 
+		spend_index_t::get_first_index(shop_id) : shop.last_sunshine_reward_spend_idx.get_index();
+
+	auto lower_itr = spend_idx.upper_bound( spend_key );
 	auto itr = lower_itr;
+	if (itr->shop_id != shop_id) //already iterate all spends within the given shop
+		return true;
+
 	auto now = time_point_sec( current_time_point() );
 	
 	auto share_cache = shop.share_cache;
-	// if (share_cache.total_spending.amount == 0) { //FIXME: this has been discarded
-	// 	// check(false, "zero shop total spending");
-	// 	return true;
-	// }
-		
-	// check(false, "itr->shop_id: " + to_string(itr->shop_id) + ", shop_id: " + to_string(shop_id));
 	if (share_cache.total_spending.amount == 0) 
 		return true;
 
 	bool processed = false;
-	for (uint8_t step = 0; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
-
-		if (itr->shop_id != shop_id) break; //already iterate all spends within the given shop
-
-		check(false, "Entering here");
-
+	uint8_t step = 0;
+	for (; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
 		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
 		
 		auto spending_share_cache = itr->share_cache;
@@ -467,15 +458,16 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 		user_t user(itr->customer);
 		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
-		TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "shop sunshine reward" )  /// sunshine reward
+		TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "sunshine reward by shop-" + to_string(shop_id) )  /// sunshine reward
 		_log_reward( user.account, SHOP_SUNSHINE_REWARD, sunshine_quant, now);
 
 		auto quant_avg = share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
 		if (shop.top_rewarded_count++ < shop.top_reward_count) {
-			TRANSFER( _cstate.mall_bank, user.account, quant_avg, "shop top reward" ) /// shop top reward
+			TRANSFER( _cstate.mall_bank, user.account, quant_avg, "top reward by shop-" +  to_string(shop_id) ) /// shop top reward
 			_log_reward( user.account, SHOP_TOP_REWARD, quant_avg, now);
-			processed = true;
 		}
+
+		processed = true;
 	}
 
 	if (!processed)
@@ -485,14 +477,16 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		shop.share.day_spending 	-= shop.share_cache.day_spending;
 		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
 		shop.share.top_share		-= shop.share_cache.top_share;
-		
 		shop.top_rewarded_count 	= 0;
 		shop.updated_at 			= now;
+
 		shop.share_cache.reset();
+		shop.last_sunshine_reward_spend_idx.reset();
 
 		_dbc.set( shop );
+
 		return true;
-	} 
+	}
 
 	_dbc.set( shop );
 	return false;
@@ -502,7 +496,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
  * Usage: to reward shop spending for all shops
  */
 ACTION hst_mall::rewardshops() {
-	// _check_rewarded( _gstate2.last_shops_rewarded_at );
+	_check_rewarded( _gstate2.last_shops_rewarded_at );
 
 	shop_t::tbl_t shops(_self, _self.value);
 	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
@@ -510,17 +504,24 @@ ACTION hst_mall::rewardshops() {
 
 	string res = "";
 	for (; itr != shops.end() && step < MAX_STEP; itr++, step++) {
-		if (!_reward_shop(itr->id)) return; // this shop not finished, needs to re-enter in next round of this
+		auto shop_id = itr->id;
+		if (!_reward_shop(shop_id)) {
+			// check( false, "shop not done: " + to_string(shop_id) );
+			return; // this shop not finished, needs to re-enter in next round of this
+		}
 
-		res += " " + to_string(itr->id);
-		_gstate2.last_reward_shop_id = itr->id;
+		res += " " + to_string(shop_id);
+		_gstate2.last_reward_shop_id = shop_id;
 	}
+	// res += "\n _gstate2.last_reward_shop_id =" + to_string(_gstate2.last_reward_shop_id );
 	// check(false, "shops: " + res);
 	// check(false, "_gstate2.last_reward_shop_id = " + to_string(_gstate2.last_reward_shop_id));
 
-	_gstate2.last_reward_shop_id = 0;
-	_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
-	_gstate.executing = false;
+	if (itr == shops.end()) {
+		_gstate2.last_reward_shop_id = 0;
+		_gstate2.last_shops_rewarded_at = time_point_sec( current_time_point() );
+		_gstate.executing = false;
+	}
 }
 
 /**

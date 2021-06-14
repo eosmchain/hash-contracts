@@ -236,7 +236,13 @@ struct spend_index_t {
             0ULL);
     }
     
-    checksum256 get_first_index() {
+    void reset() {
+        shop_id = 0;
+        spending_id = 0;
+        spending.amount = 0;
+    }
+
+    static checksum256 get_first_index(const uint64_t& shop_id) {
         return checksum256::make_from_word_sequence<uint64_t>(shop_id, 0ULL, 0ULL, 0ULL);
     }
 
