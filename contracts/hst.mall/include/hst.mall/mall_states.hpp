@@ -235,6 +235,10 @@ struct spend_index_t {
             spending_id, 
             0ULL);
     }
+    
+    checksum256 get_first_index() {
+        return checksum256::make_from_word_sequence<uint64_t>(shop_id, 0ULL, 0ULL, 0ULL);
+    }
 
     EOSLIB_SERIALIZE( spend_index_t, (shop_id)(spending_id)(spending) )
 };

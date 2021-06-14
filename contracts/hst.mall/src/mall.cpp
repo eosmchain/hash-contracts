@@ -78,8 +78,13 @@ inline void hst_mall::credit_user(const asset& total, user_t& user, const shop_t
 
 // remaining, shop, now
 inline void hst_mall::credit_shop(const asset& total, shop_t& shop, const time_point_sec& now) {
+	auto share0 						= total * _cstate.allocation_ratios[0] / ratio_boost; 
+	shop.share.total_spending			+= share0;
+	shop.share.day_spending				+= share0;
+
 	auto share1							= total * _cstate.allocation_ratios[1] / ratio_boost; 
 	auto share2							= total * _cstate.allocation_ratios[2] / ratio_boost; 
+	
 	shop.share.sunshine_share 			+= share1; //shop-all:	15%
 	shop.share.top_share 				+= share2; //shop-top:	5%
 	shop.updated_at						= now;
@@ -304,30 +309,62 @@ void hst_mall::_init() {
 
 ACTION hst_mall::init() {
 	require_auth(_self);
+
+
 	// check(false, "init disabled");
+	
+	shop_t shop(1);
+	_dbc.get(shop);
+	shop.share.total_spending.amount = 1934550;
+	_dbc.set(shop);
 
-	list<spending_t> new_spends;
+	shop.id = 6;
+	_dbc.get(shop);
+	shop.share.total_spending.amount = 7200;
+	_dbc.set(shop);
+	
+	shop.id = 17;
+	_dbc.get(shop);
+	shop.share.total_spending.amount = 669600;
+	_dbc.set(shop);
 
-	auto spends = spending_t::tbl_t(_self, _self.value);
-	for (auto itr = spends.begin(); itr != spends.end();) {
-		spending_t spend(itr->id);
-		_dbc.get(spend);
-		new_spends.push_back(spend);
+	shop.id = 5;
+	_dbc.get(shop);
+	shop.share.total_spending.amount = 133650;
+	_dbc.set(shop);
 
-		itr = spends.erase(itr);
-	}
+	shop.id = 41;
+	_dbc.get(shop);
+	shop.share.total_spending.amount = 27000;
+	_dbc.set(shop);
 
-	for (auto spend : new_spends) {
-		spends.emplace(_self, [&](auto& row) {
-			row.id 						= spend.id;
-			row.shop_id 				= spend.shop_id;
-			row.customer 				= spend.customer;
-			row.share					= spend.share;
-			row.share_cache				= spend.share_cache;
-			row.share_cache_updated		= spend.share_cache_updated;
-			row.created_at 				= spend.created_at;
-		});
-	}
+	shop.id = 43;
+	_dbc.get(shop);
+	shop.share.total_spending.amount = 50400;
+	_dbc.set(shop);
+
+	// list<spending_t> new_spends;
+
+	// auto spends = spending_t::tbl_t(_self, _self.value);
+	// for (auto itr = spends.begin(); itr != spends.end();) {
+	// 	spending_t spend(itr->id);
+	// 	_dbc.get(spend);
+	// 	new_spends.push_back(spend);
+
+	// 	itr = spends.erase(itr);
+	// }
+
+	// for (auto spend : new_spends) {
+	// 	spends.emplace(_self, [&](auto& row) {
+	// 		row.id 						= spend.id;
+	// 		row.shop_id 				= spend.shop_id;
+	// 		row.customer 				= spend.customer;
+	// 		row.share					= spend.share;
+	// 		row.share_cache				= spend.share_cache;
+	// 		row.share_cache_updated		= spend.share_cache_updated;
+	// 		row.created_at 				= spend.created_at;
+	// 	});
+	// }
 
 	// _cstate.allocation_ratios[2] = 800;
 	// _cstate.allocation_ratios[3] = 500;
@@ -397,7 +434,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	spending_t::tbl_t spends(_self, _self.value);
 	auto spend_idx = spends.get_index<"shopspends"_n>();
 	shop.last_sunshine_reward_spend_idx.shop_id = shop_id;
-	auto spend_key = shop.last_sunshine_reward_spend_idx.get_index();
+	auto spend_key = shop.last_sunshine_reward_spend_idx.get_first_index();
 	auto lower_itr = spend_idx.lower_bound( spend_key );
 	// auto upper_itr = spend_idx.upper_bound( spend_key );
 	// auto itr = upper_itr;
@@ -410,7 +447,9 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	// 	return true;
 	// }
 		
-	check(false, "itr->shop_id: " + to_string(itr->shop_id) + ", shop_id: " + to_string(shop_id));
+	// check(false, "itr->shop_id: " + to_string(itr->shop_id) + ", shop_id: " + to_string(shop_id));
+	if (share_cache.total_spending.amount == 0) 
+		return true;
 
 	bool processed = false;
 	for (uint8_t step = 0; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
@@ -423,6 +462,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		
 		auto spending_share_cache = itr->share_cache;
 		check(spending_share_cache.total_spending.amount > 0, "Err: zero user total spending");
+		
 		auto sunshine_quant = share_cache.sunshine_share * spending_share_cache.total_spending.amount / share_cache.total_spending.amount;
 
 		user_t user(itr->customer);
@@ -475,7 +515,7 @@ ACTION hst_mall::rewardshops() {
 		res += " " + to_string(itr->id);
 		_gstate2.last_reward_shop_id = itr->id;
 	}
-	check(false, "shops: " + res);
+	// check(false, "shops: " + res);
 	// check(false, "_gstate2.last_reward_shop_id = " + to_string(_gstate2.last_reward_shop_id));
 
 	_gstate2.last_reward_shop_id = 0;
