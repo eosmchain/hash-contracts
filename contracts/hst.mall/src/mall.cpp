@@ -451,7 +451,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	auto now = time_point_sec( current_time_point() );
 	
 	auto share_cache = shop.share_cache;
-	if (share_cache.total_spending.amount == 0) 
+	if (share_cache.total_spending.amount == 0 || share_cache.sunshine_share.amount == 0) 
 		return true;
 
 	bool processed = false;
@@ -461,11 +461,13 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		
 		auto spending_share_cache = itr->share_cache;
 		check(spending_share_cache.total_spending.amount > 0, "Err: zero user total spending");
-		
-		auto sunshine_quant = share_cache.sunshine_share * spending_share_cache.total_spending.amount / share_cache.total_spending.amount;
+		 
+		auto sunshine_quant = share_cache.sunshine_share * spending_share_cache.total_spending.amount / 
+								share_cache.total_spending.amount;
 
 		user_t user(itr->customer);
 		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
+
 		TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "sunshine reward by shop-" + to_string(shop_id) )  /// sunshine reward
 		_log_reward( user.account, SHOP_SUNSHINE_REWARD, sunshine_quant, now);
 
