@@ -310,7 +310,7 @@ void hst_mall::_init() {
 ACTION hst_mall::init() {
 	require_auth(_self);
 
-	check(false, "init disabled");
+	// check(false, "init disabled");
 
 	// auto shops = shop_t::tbl_t(_self, _self.value);
 	// for (auto itr = shops.begin(); itr != shops.end(); itr++) {
@@ -320,10 +320,10 @@ ACTION hst_mall::init() {
 	// 	_dbc.set(shop);
 	// }
 	
-	// shop_t shop(1);
-	// _dbc.get(shop);
-	// shop.share.total_spending.amount = 1934550;
-	// _dbc.set(shop);
+	shop_t shop(1);
+	_dbc.get(shop);
+	shop.share.total_spending.amount = 1934550;
+	_dbc.set(shop);
 
 	// shop.id = 6;
 	// _dbc.get(shop);
@@ -414,7 +414,7 @@ ACTION hst_mall::setownershop(const name& owner, const uint64_t& shop_id) {
 
 inline void hst_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
 	CHECK( current_time_point().sec_since_epoch() > last_rewarded_at.sec_since_epoch() + seconds_per_halfday, "too early to reward: < 12 hours" )
-	CHECK( !_is_today(last_rewarded_at), "done" ) //check if the particular category is rewarded
+	CHECK( !_is_today(last_rewarded_at), "already rewarded" ) //check if the particular category is rewarded
 }
 
 
@@ -430,10 +430,15 @@ void hst_mall::_log_reward(const name& account, const reward_type_t &reward_type
 	});
 }
 
+/**
+ * 阳光普照, 是按照累计排名的
+ * 门店top5, 是按照当日消费额前5
+ */
 bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	CHECK( !_is_today(shop.updated_at), "shop sunshine reward already executed" )
+	if (_is_today(shop.updated_at))
+		return true;
 
 	if (shop.top_rewarded_count == 0)
 		shop.share_cache = shop.share;
@@ -452,7 +457,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	
 	auto share_cache = shop.share_cache;
 	if (share_cache.total_spending.amount == 0 || share_cache.sunshine_share.amount == 0) 
-		return true;
+		return true; //no share for this shop, hence skipping it
 
 	bool processed = false;
 	uint8_t step = 0;
