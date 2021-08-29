@@ -439,9 +439,16 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 	if (_is_today(shop.updated_at))
 		return true;
+	
+	if (shop.top_rewarded_count > shop.top_reward_count) 
+		shop.top_rewarded_count = 0;
 
-	if (shop.top_rewarded_count == 0)
+	if (shop.top_rewarded_count == 0) {
+		shop.last_sunshine_reward_spend_idx.shop_id = 0;
 		shop.share_cache = shop.share;
+	}
+
+	_dbc.set( shop );
 
 	spending_t::tbl_t spends(_self, _self.value);
 	auto spend_idx = spends.get_index<"shopspends"_n>();
@@ -460,8 +467,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		return true; //no share for this shop, hence skipping it
 
 	bool processed = false;
-	uint8_t step = 0;
-	for (; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
+	for (uint8_t step = 0; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
 		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
 		
 		auto spending_share_cache = itr->share_cache;
@@ -484,6 +490,8 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 		processed = true;
 	}
+
+	_dbc.set( shop );
 
 	if (!processed)
 		return true;	// means empy and no-need for rentrance
@@ -510,14 +518,19 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 /**
  * Usage: to reward shop spending for all shops
  */
-ACTION hst_mall::rewardshops() {
+ACTION hst_mall::rewardshops(const uint64_t& shop_id) {
 	_check_rewarded( _gstate2.last_shops_rewarded_at );
+
+	if (shop_id != 0) {
+		_reward_shop(shop_id);
+		return;
+	}
 
 	shop_t::tbl_t shops(_self, _self.value);
 	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
 	uint8_t step = 0; 
 
-	string res = "";
+	// string res = "";
 	for (; itr != shops.end() && step < MAX_STEP; itr++, step++) {
 		auto shop_id = itr->id;
 		if (!_reward_shop(shop_id)) {
@@ -525,12 +538,11 @@ ACTION hst_mall::rewardshops() {
 			return; // this shop not finished, needs to re-enter in next round of this
 		}
 
-		res += " " + to_string(shop_id);
+		// res += " " + to_string(shop_id);
 		_gstate2.last_reward_shop_id = shop_id;
 	}
 	// res += "\n _gstate2.last_reward_shop_id =" + to_string(_gstate2.last_reward_shop_id );
-	// check(false, "shops: " + res);
-	// check(false, "_gstate2.last_reward_shop_id = " + to_string(_gstate2.last_reward_shop_id));
+	// check(false, 	"shops: " + res);
 
 	if (itr == shops.end()) {
 		_gstate2.last_reward_shop_id = 0;

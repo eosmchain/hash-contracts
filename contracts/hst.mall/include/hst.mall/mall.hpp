@@ -70,7 +70,7 @@ namespace hst {
          void certifyuser(const name& issuer, const name& user);
 
          [[eosio::action]]
-         void rewardshops(); //anyone can invoke, but usually by the platform
+         void rewardshops(const uint64_t& shop_id); //anyone can invoke, but usually by the platform
          [[eosio::action]]
          void rewardptops(); //anyone can invoke, but usually by the platform
          [[eosio::action]]
