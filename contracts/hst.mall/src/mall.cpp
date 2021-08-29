@@ -448,6 +448,9 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		shop.share_cache = shop.share;
 	}
 
+	// check(false, "shop.top_rewarded_count=" + to_string(shop.top_rewarded_count) + " \n" +
+	// 			 "shop.top_reward_count=" + to_string(shop.top_reward_count) );
+
 	_dbc.set( shop );
 
 	spending_t::tbl_t spends(_self, _self.value);
@@ -468,11 +471,15 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 	bool processed = false;
 	for (uint8_t step = 0; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
+		if (itr->shop_id != shop_id) //already iterate all spends within the given shop
+			return true;
+
 		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
 		
 		auto spending_share_cache = itr->share_cache;
 		check(spending_share_cache.total_spending.amount > 0, "Err: zero user total spending");
-		 
+		check(spending_share_cache.total_spending.amount <= share_cache.total_spending.amount, "Err: individual spending > total spending for: " + to_string(itr->id) );
+
 		auto sunshine_quant = share_cache.sunshine_share * spending_share_cache.total_spending.amount / 
 								share_cache.total_spending.amount;
 
@@ -489,9 +496,9 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		}
 
 		processed = true;
-	}
 
-	_dbc.set( shop );
+		_dbc.set( shop );
+	}
 
 	if (!processed)
 		return true;	// means empy and no-need for rentrance
@@ -511,7 +518,6 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		return true;
 	}
 
-	_dbc.set( shop );
 	return false;
 }
 
