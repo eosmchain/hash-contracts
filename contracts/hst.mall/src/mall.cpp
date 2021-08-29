@@ -545,6 +545,7 @@ ACTION hst_mall::rewardshops() {
 ACTION hst_mall::rewardcerts() {
 	_check_rewarded( _gstate2.last_certification_rewarded_at );
 
+	update_share_cache();
 	CHECK( _gstate.platform_share_cache.certified_user_count > 0, "Err: certified user count is zero" )
 	auto quant = _gstate.platform_share_cache.certified_user_share / _gstate.platform_share_cache.certified_user_count;
 	certification_t::tbl_t certifications(_self, _self.value);
@@ -593,6 +594,8 @@ ACTION hst_mall::rewardptops() {
 		if (_gstate2.last_platform_top_reward_step > _cstate.platform_top_count || 	// top-1000 reward
 			itr->share_cache.total_share().amount == 0) {							//sequential and it's the end
 			ended = true;
+
+			// check( itr->share_cache.total_share().amount > 0, "step: " + to_string(step) + ", 0 total_share from itr->account: " + itr->account.to_string() );
 			break; 
 		}
 
@@ -603,7 +606,7 @@ ACTION hst_mall::rewardptops() {
 		processed = true;
 	}
 
-	CHECK( processed, "none processed" )
+	// CHECK( processed, "none processed" )
 
 	if ( ended || itr == user_idx.end()) {
 		_gstate.platform_share.top_share 			-= _gstate.platform_share_cache.top_share;
