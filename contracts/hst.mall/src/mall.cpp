@@ -414,7 +414,7 @@ ACTION hst_mall::setownershop(const name& owner, const uint64_t& shop_id) {
 
 inline void hst_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
 	CHECK( current_time_point().sec_since_epoch() > last_rewarded_at.sec_since_epoch() + seconds_per_halfday, "too early to reward: < 12 hours" )
-	CHECK( !_is_today(last_rewarded_at), "already rewarded" ) //check if the particular category is rewarded
+	CHECK( !_is_today(last_rewarded_at), "already rewarded: " + to_string(last_rewarded_at.sec_since_epoch())) //check if the particular category is rewarded
 }
 
 
@@ -470,9 +470,12 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		return true; //no share for this shop, hence skipping it
 
 	bool processed = false;
+	bool completed = false;
 	for (uint8_t step = 0; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
-		if (itr->shop_id != shop_id) //already iterate all spends within the given shop
-			return true;
+		if (itr->shop_id != shop_id) { //already iterate all spends within the given shop 
+			completed = true;
+			break;
+		}
 
 		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
 		
@@ -493,6 +496,8 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		if (shop.top_rewarded_count++ < shop.top_reward_count) {
 			TRANSFER( _cstate.mall_bank, user.account, quant_avg, "top reward by shop-" +  to_string(shop_id) ) /// shop top reward
 			_log_reward( user.account, SHOP_TOP_REWARD, quant_avg, now);
+		} else {
+			// top_reward_completed = true;
 		}
 
 		processed = true;
@@ -500,10 +505,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		_dbc.set( shop );
 	}
 
-	if (!processed)
-		return true;	// means empy and no-need for rentrance
-
-	if (itr == spend_idx.end()) { //means finished for this shop
+	if (completed || itr == spend_idx.end()) { //means finished for this shop
 		shop.share.day_spending 	-= shop.share_cache.day_spending;
 		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
 		shop.share.top_share		-= shop.share_cache.top_share;
@@ -518,7 +520,7 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		return true;
 	}
 
-	return false;
+	return !processed;
 }
 
 /**
@@ -547,7 +549,7 @@ ACTION hst_mall::rewardshops(const uint64_t& shop_id) {
 		// res += " " + to_string(shop_id);
 		_gstate2.last_reward_shop_id = shop_id;
 	}
-	// res += "\n _gstate2.last_reward_shop_id =" + to_string(_gstate2.last_reward_shop_id );
+	// res += "\n _gstate2.last_reward_shop_id = " + to_string(_gstate2.last_reward_shop_id );
 	// check(false, 	"shops: " + res);
 
 	if (itr == shops.end()) {
