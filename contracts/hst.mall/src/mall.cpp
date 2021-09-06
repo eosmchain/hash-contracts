@@ -320,9 +320,10 @@ ACTION hst_mall::init() {
 	// 	_dbc.set(shop);
 	// }
 	
-	shop_t shop(1);
+	shop_t shop(31);
 	_dbc.get(shop);
-	shop.share.total_spending.amount = 1934550;
+	// shop.share.total_spending.amount = 1934550;
+	shop.updated_at = time_point_sec(1630827592);
 	_dbc.set(shop);
 
 	// shop.id = 6;
@@ -456,10 +457,22 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 	auto lower_itr = spend_idx.upper_bound( spend_key );
 	auto itr = lower_itr;
-	if (itr->shop_id != shop_id) //already iterate all spends within the given shop
-		return true;
-
 	auto now = time_point_sec( current_time_point() );
+
+	if (itr->shop_id != shop_id) { //already iterate all spends within the given shop 
+		shop.share.day_spending 	-= shop.share_cache.day_spending;
+		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
+		shop.share.top_share		-= shop.share_cache.top_share;
+		shop.top_rewarded_count 	= 0;
+		shop.updated_at 			= now;
+
+		shop.share_cache.reset();
+		shop.last_sunshine_reward_spend_idx.reset();
+		
+		_dbc.set( shop );
+
+		return true;
+	}
 	
 	auto share_cache = shop.share_cache;
 	if (share_cache.total_spending.amount == 0 || share_cache.sunshine_share.amount == 0) 
