@@ -439,19 +439,15 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 	if (_is_today(shop.updated_at))
 		return true;
-	
-	if (shop.top_rewarded_count > shop.top_reward_count) 
-		shop.top_rewarded_count = 0;
 
 	if (shop.top_rewarded_count == 0) {
 		shop.last_sunshine_reward_spend_idx.shop_id = 0;
 		shop.share_cache = shop.share;
+		_dbc.set( shop );
 	}
 
 	// check(false, "shop.top_rewarded_count=" + to_string(shop.top_rewarded_count) + " \n" +
-	// 			 "shop.top_reward_count=" + to_string(shop.top_reward_count) );
-
-	_dbc.set( shop );
+	// 			 "shop.top_reward_count=" + to_string(shop.top_reward_count) );	
 
 	spending_t::tbl_t spends(_self, _self.value);
 	auto spend_idx = spends.get_index<"shopspends"_n>();
@@ -489,23 +485,25 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		user_t user(itr->customer);
 		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
 
+		/// 1. Sunshine reward
 		TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "sunshine reward by shop-" + to_string(shop_id) )  /// sunshine reward
 		_log_reward( user.account, SHOP_SUNSHINE_REWARD, sunshine_quant, now);
 
+		/// 2. Shop-top reward
 		auto quant_avg = share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
-		if (shop.top_rewarded_count++ < shop.top_reward_count) {
+		if (shop.top_rewarded_count < shop.top_reward_count) {
 			TRANSFER( _cstate.mall_bank, user.account, quant_avg, "top reward by shop-" +  to_string(shop_id) ) /// shop top reward
 			_log_reward( user.account, SHOP_TOP_REWARD, quant_avg, now);
-		} else {
-			// top_reward_completed = true;
+			shop.top_rewarded_count++;
 		}
 
 		processed = true;
-
-		_dbc.set( shop );
 	}
 
-	if (completed || itr == spend_idx.end()) { //means finished for this shop
+	if (!processed || itr == spend_idx.end()) //!processed means nothing to process or empty
+		completed = true;
+
+	if (completed) { //means finished for this shop
 		shop.share.day_spending 	-= shop.share_cache.day_spending;
 		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
 		shop.share.top_share		-= shop.share_cache.top_share;
@@ -514,13 +512,11 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 		shop.share_cache.reset();
 		shop.last_sunshine_reward_spend_idx.reset();
-
-		_dbc.set( shop );
-
-		return true;
 	}
+	
+	_dbc.set( shop );
 
-	return !processed;
+	return completed;
 }
 
 /**
