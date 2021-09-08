@@ -545,7 +545,7 @@ ACTION hst_mall::rewardshops(const uint64_t& shop_id) {
 	}
 
 	shop_t::tbl_t shops(_self, _self.value);
-	auto itr = shops.upper_bound(_gstate2.last_reward_shop_id);
+	auto itr = shops.lower_bound(_gstate2.last_reward_shop_id);
 	uint8_t step = 0; 
 
 	// string res = "";
