@@ -5,8 +5,8 @@
 
 namespace hst {
 
-inline bool hst_mall::_is_today(const time_point_sec& time) {
-	return time.sec_since_epoch() % seconds_per_day == current_time_point().sec_since_epoch() % seconds_per_day;
+inline bool hst_mall::_is_today(const time_point_sec& time, const time_point_sec& now) {
+	return time.sec_since_epoch() % seconds_per_day == now.sec_since_epoch() % seconds_per_day;
 }
 
 ///platform share cache
@@ -414,8 +414,9 @@ ACTION hst_mall::setownershop(const name& owner, const uint64_t& shop_id) {
 }
 
 inline void hst_mall::_check_rewarded(const time_point_sec& last_rewarded_at) {
-	CHECK( current_time_point().sec_since_epoch() > last_rewarded_at.sec_since_epoch() + seconds_per_halfday, "too early to reward: < 12 hours" )
-	CHECK( !_is_today(last_rewarded_at), "already rewarded: " + to_string(last_rewarded_at.sec_since_epoch())) //check if the particular category is rewarded
+	auto now = current_time_point();
+	CHECK( now.sec_since_epoch() > last_rewarded_at.sec_since_epoch() + seconds_per_halfday, "too early to reward: < 12 hours" )
+	CHECK( !_is_today(last_rewarded_at, now), "already rewarded @ ts = " + to_string(last_rewarded_at.sec_since_epoch()) + " v.s. now = " + to_string(now.sec_since_epoch()) ) //check if the particular category is rewarded
 }
 
 
@@ -438,7 +439,7 @@ void hst_mall::_log_reward(const name& account, const reward_type_t &reward_type
 bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	if (_is_today(shop.updated_at))
+	if (_is_today(shop.updated_at, current_time_point()))
 		return true;
 
 	if (shop.top_rewarded_count == 0) {
@@ -635,13 +636,16 @@ ACTION hst_mall::rewardptops() {
 		processed = true;
 	}
 
+	if (!processed || itr == user_idx.end())
+		ended = true;
 	// CHECK( processed, "none processed" )
 
-	if ( ended || itr == user_idx.end()) {
+	if ( ended ) {
 		_gstate.platform_share.top_share 			-= _gstate.platform_share_cache.top_share;
 		_gstate.platform_share.total_share 			-= _gstate.platform_share_cache.top_share;
-		_gstate.platform_share_cache.top_share 		= _gstate.platform_share.top_share;
+		
 		_gstate.platform_share_cache.total_share 	= _gstate.platform_share.total_share;
+		_gstate.platform_share_cache.top_share.amount = 0;
 
 		_gstate2.last_platform_top_reward_step 		= 0;
 		_gstate2.last_platform_top_reward_id		= 0;
