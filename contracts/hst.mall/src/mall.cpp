@@ -6,7 +6,7 @@
 namespace hst {
 
 inline bool hst_mall::_is_today(const time_point_sec& time, const time_point_sec& now) {
-	return time.sec_since_epoch() % seconds_per_day == now.sec_since_epoch() % seconds_per_day;
+	return time.sec_since_epoch() / seconds_per_day == now.sec_since_epoch() / seconds_per_day;
 }
 
 ///platform share cache
@@ -308,7 +308,19 @@ void hst_mall::_init() {
 }
 
 ACTION hst_mall::init() {
-	require_auth(_self);
+	// require_auth(_self);
+
+	bool res = _is_today(time_point_sec(), time_point_sec(1631243580));
+
+	auto last_rewarded_at_secs = time_point_sec(1631157180).sec_since_epoch(); 
+	auto last_rewarded_at_days = last_rewarded_at_secs / seconds_per_day;
+
+	auto now_secs = time_point_sec(1631243580).sec_since_epoch();
+	auto now_days = now_secs / seconds_per_day;
+	
+	check(false, "\nseconds_per_day = " + to_string(seconds_per_day) + "\n" +
+		"last_rewarded_at_secs = " + to_string(last_rewarded_at_secs) + ", last_rewarded_at_days = " + to_string(last_rewarded_at_days) + "\n" +
+		"now_secs = " + to_string(now_secs) + ", now_days = " + to_string(now_days) + "\n" );
 
 	// check(false, "init disabled");
 
