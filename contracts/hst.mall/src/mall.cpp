@@ -168,6 +168,7 @@ inline void hst_mall::credit_ramusage(const asset& total) {
  *  @quantity:	amount issued and transferred
  *  @memo: 		format-1: "<user_account>@<shop_id>"
  *              format-2: "burn@<external_serial_no>"
+ * 				format-3: "reward@cert"		-- any user can pay to add more rewards to the reward mining pool of certified users
  * 		
  */
 void hst_mall::ontransfer(const name& from, const name& to, const asset& quantity, const string& memo) {
@@ -181,11 +182,20 @@ void hst_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	CHECK( get_first_receiver() == _cstate.mall_bank, "must transfer by HST_BANK: " + _cstate.mall_bank.to_string() )
 
 	vector<string_view> params = split(memo, "@");	
-	CHECK( params.size() == 2, "memo must be of <burn|user_account>@<shop_id>|<sn>" )
+	CHECK( params.size() == 2, "memo must be of <reward|burn|user_account>@<shop_id>|<sn>" )
 
 	auto act = std::string(params[0]);
 	if (act == "burn") {
 		BURN( _cstate.mall_bank, _self, quantity, "burn" )
+		return;
+	} 
+	
+	if (act == "reward") {
+		auto target = std::string(params[1]);
+		CHECK( target == "cert", "target is not cert" )
+
+		_gstate.platform_share.certified_user_share += quantity; //certified:	8%
+		update_share_cache();
 		return;
 	}
 	
