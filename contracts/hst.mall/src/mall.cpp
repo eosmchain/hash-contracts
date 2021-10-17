@@ -501,6 +501,9 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	if (share_cache.total_spending.amount == 0 || share_cache.sunshine_share.amount == 0) 
 		return true; //no share for this shop, hence skipping it
 
+	auto shoptop_reward_avg = share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
+	CHECK( shoptop_reward_avg.amount > 0, "Err: shop_id(" + to_string(itr->shop_id) + ") has 0 shop top reward" )
+
 	bool processed = false;
 	bool completed = false;
 	for (uint8_t step = 0; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
@@ -518,18 +521,26 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		auto sunshine_quant = share_cache.sunshine_share * spending_share_cache.total_spending.amount / 
 								share_cache.total_spending.amount;
 
+		// CHECK( sunshine_quant.amount > 0, "Err: zero sunshine reward \nshop_id: " + to_string(itr->shop_id) + "\n"
+		// 	+ "itr->id: " + to_string(itr->id) + "\n" 
+		// 	+ "share_cache.sunshine_share = " + share_cache.sunshine_share.to_string() + "\n"
+		// 	+ "spending_share_cache.total_spending = " + spending_share_cache.total_spending.to_string() + "\n"
+		// 	+ "share_cache.total_spending = " + share_cache.total_spending.to_string() + "\n"
+		// 	+ "===> sunshine_quant = " + sunshine_quant.to_string() )
+
 		user_t user(itr->customer);
 		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
 
 		/// 1. Sunshine reward
-		TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "sunshine reward by shop-" + to_string(shop_id) )  /// sunshine reward
-		_log_reward( user.account, SHOP_SUNSHINE_REWARD, sunshine_quant, now);
+		if (sunshine_quant.amount > 0) {
+			TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "sunshine reward by shop-" + to_string(shop_id) )  /// sunshine reward
+			_log_reward( user.account, SHOP_SUNSHINE_REWARD, sunshine_quant, now);
+		}
 
 		/// 2. Shop-top reward
-		auto quant_avg = share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
 		if (shop.top_rewarded_count < shop.top_reward_count) {
-			TRANSFER( _cstate.mall_bank, user.account, quant_avg, "top reward by shop-" +  to_string(shop_id) ) /// shop top reward
-			_log_reward( user.account, SHOP_TOP_REWARD, quant_avg, now);
+			TRANSFER( _cstate.mall_bank, user.account, shoptop_reward_avg, "top reward by shop-" +  to_string(shop_id) ) /// shop top reward
+			_log_reward( user.account, SHOP_TOP_REWARD, shoptop_reward_avg, now);
 			shop.top_rewarded_count++;
 		}
 
