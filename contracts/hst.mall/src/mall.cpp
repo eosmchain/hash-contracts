@@ -497,11 +497,11 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		return true;
 	}
 	
-	auto share_cache = shop.share_cache;
-	if (share_cache.total_spending.amount == 0 || share_cache.sunshine_share.amount == 0) 
+	auto shop_share_cache = shop.share_cache;
+	if (shop_share_cache.total_spending.amount == 0 || shop_share_cache.sunshine_share.amount == 0) 
 		return true; //no share for this shop, hence skipping it
 
-	auto shoptop_reward_avg = share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
+	auto shoptop_reward_avg = shop_share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
 	CHECK( shoptop_reward_avg.amount > 0, "Err: shop_id(" + to_string(itr->shop_id) + ") has 0 shop top reward" )
 
 	bool processed = false;
@@ -516,10 +516,10 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		
 		auto spending_share_cache = itr->share_cache;
 		check(spending_share_cache.total_spending.amount > 0, "Err: zero user total spending");
-		check(spending_share_cache.total_spending.amount <= share_cache.total_spending.amount, "Err: individual spending > total spending for: " + to_string(itr->id) );
+		check(spending_share_cache.total_spending.amount <= shop_share_cache.total_spending.amount, "Err: individual spending > total spending for: " + to_string(itr->id) );
 
-		auto sunshine_quant = share_cache.sunshine_share * spending_share_cache.total_spending.amount / 
-								share_cache.total_spending.amount;
+		auto sunshine_quant = shop_share_cache.sunshine_share * spending_share_cache.day_spending.amount / 
+								shop_share_cache.day_spending.amount;
 
 		// CHECK( sunshine_quant.amount > 0, "Err: zero sunshine reward \nshop_id: " + to_string(itr->shop_id) + "\n"
 		// 	+ "itr->id: " + to_string(itr->id) + "\n" 
