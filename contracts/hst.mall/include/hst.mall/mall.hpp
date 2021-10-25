@@ -67,6 +67,9 @@ namespace hst {
          void registercc(const name& issuer, const uint64_t cc_id, const string& cc_name, const name& admin);
    
          [[eosio::action]]
+         void updatecc(const uint64_t& cc_id, const string& cc_name, const name& cc_admin);
+
+         [[eosio::action]]
          void certifyuser(const name& issuer, const name& user);
 
          [[eosio::action]]

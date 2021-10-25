@@ -295,6 +295,24 @@ ACTION hst_mall::registercc(const name& issuer, const uint64_t cc_id, const stri
 	_dbc.set( cc );
 }
 
+ACTION hst_mall::updatecc(const uint64_t& cc_id, const string& cc_name, const name& cc_admin) {
+	require_auth( _cstate.platform_admin );
+	CHECK(is_account(cc_admin), "invalid cc admin")
+
+	auto now = time_point_sec( current_time_point() );
+	citycenter_t cc(cc_id);
+	CHECK( _dbc.get(cc), "citycenter: " + cc_name + " not exist" )
+
+	if (cc_name.size() > 0 && cc_name.size() < 128) 
+		cc.cc_name = cc_name;
+	
+	cc.admin = cc_admin;
+	cc.created_at = now;
+
+	_dbc.set( cc );
+
+}
+
 ACTION hst_mall::certifyuser(const name& issuer, const name& user) {
 	require_auth( issuer );
 	CHECK( issuer == _cstate.platform_admin, "issuer (" + issuer.to_string() + ") not platform admin: " + _cstate.platform_admin.to_string() )
