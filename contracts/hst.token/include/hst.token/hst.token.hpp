@@ -89,6 +89,11 @@ namespace hst {
                         const asset&   quantity,
                         const string&  memo );
 
+         [[eosio::action]]
+         void transferx( const name&    from,
+                        const asset&   quantity,
+                        const string&  memo );
+
          /**
           * Allows `ram_payer` to create an account `owner` with zero balance for
           * token `symbol` at the expense of `ram_payer`.

