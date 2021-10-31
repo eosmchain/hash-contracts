@@ -346,27 +346,27 @@ ACTION hst_mall::init() {
 
 	require_auth(_self);
 
-	auto t_spends = tmp_spending_t::tbl_t(_self, _self.value);
-	auto spends = spending_t::tbl_t(_self, _self.value);
-	uint8_t step = 0;
-	for (auto itr = t_spends.begin(); itr != t_spends.end();) {
-		spends.emplace(_self, [&](auto& row) {
-				row.id 						= itr->id;
-				row.shop_id 				= itr->shop_id;
-				row.customer 				= itr->customer;
-				row.share					= itr->share;
-				row.share_cache 			= itr->share_cache;
-				row.share_cache_updated     = itr->share_cache_updated;
-				row.created_at 				= itr->created_at;
+	// auto t_spends = tmp_spending_t::tbl_t(_self, _self.value);
+	// auto spends = spending_t::tbl_t(_self, _self.value);
+	// uint8_t step = 0;
+	// for (auto itr = t_spends.begin(); itr != t_spends.end();) {
+	// 	spends.emplace(_self, [&](auto& row) {
+	// 			row.id 						= itr->id;
+	// 			row.shop_id 				= itr->shop_id;
+	// 			row.customer 				= itr->customer;
+	// 			row.share					= itr->share;
+	// 			row.share_cache 			= itr->share_cache;
+	// 			row.share_cache_updated     = itr->share_cache_updated;
+	// 			row.created_at 				= itr->created_at;
 
-				// CHECK(false, "row.share.day_spending = " + row.share.day_spending.to_string() )
-		});
+	// 			// CHECK(false, "row.share.day_spending = " + row.share.day_spending.to_string() )
+	// 	});
 
 		
-		itr = t_spends.erase(itr);
-		step++;
-		if (step == 200) return;
-	}
+	// 	itr = t_spends.erase(itr);
+	// 	step++;
+	// 	if (step == 200) return;
+	// }
 
 	// ///FIX spends issue
 	// spending_t::tbl_t spends(_self, _self.value);
