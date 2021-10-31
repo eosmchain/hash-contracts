@@ -45,7 +45,7 @@ inline void hst_mall::credit_user(const asset& total, user_t& user, const shop_t
 	_gstate.platform_share.total_share 	+= total;	//TODO: check its usage
 	
 	spending_t::tbl_t spends(_self, _self.value);
-	auto idx = spends.get_index<"shopcustidx"_n>();
+	auto idx = spends.get_index<"ukshopcust"_n>();
 	auto key = ((uint128_t) shop.id << 64) | user.account.value; 
 	auto lower_itr = idx.lower_bound( key );
 	auto upper_itr = idx.upper_bound( key );
@@ -346,30 +346,52 @@ ACTION hst_mall::init() {
 
 	require_auth(_self);
 
-	///FIX spends issue
-	spending_t::tbl_t spends(_self, _self.value);
-	auto quant = asset(135013500, HST_SYMBOL);
-	auto user_acct = "hstfksyf521x"_n;
-	auto created_at = time_point_sec(1635143756);
-	spends.emplace(_self, [&](auto& row) {
-			row.id 						= spends.available_primary_key();
-			row.shop_id 				= 31;
-			row.customer 				= user_acct;
-			row.share.day_spending		= quant;
-			row.share.total_spending 	= quant;
-			row.created_at 				= created_at;
+	auto t_spends = tmp_spending_t::tbl_t(_self, _self.value);
+	auto spends = spending_t::tbl_t(_self, _self.value);
+	uint8_t step = 0;
+	for (auto itr = t_spends.begin(); itr != t_spends.end();) {
+		spends.emplace(_self, [&](auto& row) {
+				row.id 						= itr->id;
+				row.shop_id 				= itr->shop_id;
+				row.customer 				= itr->customer;
+				row.share					= itr->share;
+				row.share_cache 			= itr->share_cache;
+				row.share_cache_updated     = itr->share_cache_updated;
+				row.created_at 				= itr->created_at;
 
-			update_share_cache(row);
-	});
+				// CHECK(false, "row.share.day_spending = " + row.share.day_spending.to_string() )
+		});
 
-	_gstate.platform_share.total_share += quant;
-	update_share_cache();
+		
+		itr = t_spends.erase(itr);
+		step++;
+		if (step == 200) return;
+	}
+
+	// ///FIX spends issue
+	// spending_t::tbl_t spends(_self, _self.value);
+	// auto quant = asset(135013500, HST_SYMBOL);
+	// auto user_acct = "hstfksyf521x"_n;
+	// auto created_at = time_point_sec(1635143756);
+	// spends.emplace(_self, [&](auto& row) {
+	// 		row.id 						= spends.available_primary_key();
+	// 		row.shop_id 				= 31;
+	// 		row.customer 				= user_acct;
+	// 		row.share.day_spending		= quant;
+	// 		row.share.total_spending 	= quant;
+	// 		row.created_at 				= created_at;
+
+	// 		update_share_cache(row);
+	// });
+
+	// _gstate.platform_share.total_share += quant;
+	// update_share_cache();
 	
-	auto user = user_t(user_acct);
-	CHECK(_dbc.get(user), "Err: user not found")
-	user.share.spending_share += quant;
-	update_share_cache( user );
-	_dbc.set( user );
+	// auto user = user_t(user_acct);
+	// CHECK(_dbc.get(user), "Err: user not found")
+	// user.share.spending_share += quant;
+	// update_share_cache( user );
+	// _dbc.set( user );
 
 	// bool res = _is_today(time_point_sec(), time_point_sec(1631243580));
 
@@ -513,11 +535,20 @@ void hst_mall::_log_reward(const name& account, const reward_type_t &reward_type
 bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
-	if (_is_today(shop.updated_at, current_time_point()))
+
+	auto shop_share_cache = shop.share_cache;
+	if (shop_share_cache.total_spending.amount == 0 || shop_share_cache.sunshine_share.amount == 0) 
+		return true; //no share for this shop, hence skipping it
+
+	if (shop.share.top_share.amount == 0 && shop.share.sunshine_share.amount == 0)
 		return true;
 
+	// if (_is_today(shop.updated_at, current_time_point()))
+	// 	return true;
+
 	if (shop.top_rewarded_count == 0) {
-		shop.last_sunshine_reward_spend_idx.shop_id = 0;
+		shop.top_reward_count = 2; //TODO: REMOVE ME AFTER EXECUTING ALL SHOPS
+		// shop.last_sunshine_reward_spend_idx.shop_id = 0;
 		shop.share_cache = shop.share;
 		_dbc.set( shop );
 	}
@@ -526,15 +557,13 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	// 			 "shop.top_reward_count=" + to_string(shop.top_reward_count) );	
 
 	spending_t::tbl_t spends(_self, _self.value);
-	auto spend_idx = spends.get_index<"shopspends"_n>();
-	auto spend_key = (shop.last_sunshine_reward_spend_idx.shop_id == 0) ? 
-		spend_index_t::get_first_index(shop_id) : shop.last_sunshine_reward_spend_idx.get_index();
+	auto spend_idx 	= spends.get_index<"idxtotspend"_n>();
+	auto spend_key 	= shop.last_sunshine_reward_spend_idx.shop_id == 0 ? spend_index_t::get_first_index(shop_id) : shop.last_sunshine_reward_spend_idx.get_index();
+	auto lower_itr 	= spend_idx.upper_bound( spend_key );
+	auto itr 		= lower_itr;
+	auto now 		= time_point_sec( current_time_point() );
 
-	auto lower_itr = spend_idx.upper_bound( spend_key );
-	auto itr = lower_itr;
-	auto now = time_point_sec( current_time_point() );
-
-	if (itr->shop_id != shop_id) { //already iterate all spends within the given shop 
+	if (itr->shop_id != shop_id || itr == spend_idx.end()) { //already iterate all spends within the given shop 
 		shop.share.day_spending 	-= shop.share_cache.day_spending;
 		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
 		shop.share.top_share		-= shop.share_cache.top_share;
@@ -543,15 +572,11 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 
 		shop.share_cache.reset();
 		shop.last_sunshine_reward_spend_idx.reset();
-		
+
 		_dbc.set( shop );
 
 		return true;
 	}
-	
-	auto shop_share_cache = shop.share_cache;
-	if (shop_share_cache.total_spending.amount == 0 || shop_share_cache.sunshine_share.amount == 0) 
-		return true; //no share for this shop, hence skipping it
 
 	auto shoptop_reward_avg = shop_share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
 	CHECK( shoptop_reward_avg.amount > 0, "Err: shop_id(" + to_string(itr->shop_id) + ") has 0 shop top reward" )
@@ -590,10 +615,12 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 		}
 
 		/// 2. Shop-top reward
-		if (shop.top_rewarded_count < shop.top_reward_count) {
+		// if (shop.top_rewarded_count < shop.top_reward_count) {
+		if (shop.top_rewarded_count < 2) {
 			TRANSFER( _cstate.mall_bank, user.account, shoptop_reward_avg, "top reward by shop-" +  to_string(shop_id) ) /// shop top reward
 			_log_reward( user.account, SHOP_TOP_REWARD, shoptop_reward_avg, now);
 			shop.top_rewarded_count++;
+			
 		}
 
 		processed = true;
@@ -622,12 +649,12 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
  * Usage: to reward shop spending for all shops
  */
 ACTION hst_mall::rewardshops(const uint64_t& shop_id) {
-	_check_rewarded( _gstate2.last_shops_rewarded_at );
-
 	if (shop_id != 0) {
 		_reward_shop(shop_id);
 		return;
 	}
+
+	_check_rewarded( _gstate2.last_shops_rewarded_at );
 
 	shop_t::tbl_t shops(_self, _self.value);
 	auto itr = shops.lower_bound(_gstate2.last_reward_shop_id);
@@ -811,7 +838,7 @@ ACTION hst_mall::withdraw(const name& issuer,
 asset hst_mall::_withdraw_shop(const uint64_t& shop_id, user_t& user, 
 		spending_t::tbl_t& spends, bool del_spend) {
 
-	auto idx = spends.get_index<"shopcustidx"_n>();
+	auto idx = spends.get_index<"ukshopcust"_n>();
 	auto key = (uint128_t) shop_id << 64 | user.account.value;
 	auto l_itr = idx.lower_bound( key );
 	auto u_itr = idx.upper_bound( key );
@@ -846,7 +873,7 @@ asset hst_mall::_withdraw_shops(user_t& user) {
 	//withdraw all shops, it might run out of time limit and thus throw exception
 	spending_t::tbl_t spends(_self, _self.value);
 	auto to = user.account;
-	auto idx = spends.get_index<"custidx"_n>();
+	auto idx = spends.get_index<"idxcust"_n>();
 	auto lower_itr = idx.lower_bound( to.value );
 	auto upper_itr = idx.upper_bound( to.value );
 	auto total_withdrawn = asset(0, HST_SYMBOL);

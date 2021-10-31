@@ -294,6 +294,8 @@ struct spending_share_t {
     EOSLIB_SERIALIZE( spending_share_t, (day_spending)(total_spending) )
 };
 
+
+/// one_shop-one_customer : one record (each day gets replaced/overwritten)
 struct CONTRACT_TBL spending_t {
     uint64_t id;
     uint64_t shop_id;
@@ -308,30 +310,44 @@ struct CONTRACT_TBL spending_t {
 
     uint64_t scope() const { return 0; }
     uint64_t primary_key() const { return id; }
-
-    ///to ensure uniquness
-    uint128_t shop_customer_key() const { return ((uint128_t) shop_id) << 64 | customer.value; }
+ 
     
-    ///to get spending records of a particular customer
-    uint64_t by_customer_key() const { return customer.value; }
+    ///to ensure uniquness
+    uint128_t uk_shop_customer() const { return ((uint128_t) shop_id) << 64 | customer.value; }
 
-    ///to derive shop top 10 and all
-    checksum256 by_shop_day_spending() const {
+    ///to get all spendings (cross-customer) of a shop
+    uint64_t by_shop() const { return shop_id; }
+
+    ///to get all spendings (cross-shop) of a customer
+    uint64_t by_customer() const { return customer.value; }
+
+    ///to derive shop top-N by day (of yesterday)
+    checksum256 by_day_spending() const {
+        return checksum256::make_from_word_sequence<uint64_t>(
+            shop_id,
+            std::numeric_limits<uint64_t>::max() - share_cache.day_spending.amount, 
+            id,
+            0ULL);
+    }
+    
+    checksum256 by_total_spending() const {
         return checksum256::make_from_word_sequence<uint64_t>(
             shop_id, 
-            std::numeric_limits<uint64_t>::max() - share_cache.day_spending.amount, 
+            std::numeric_limits<uint64_t>::max() - share_cache.total_spending.amount, 
             id, 
             0ULL); 
     }
 
     uint128_t by_cache_update() const { return (uint128_t) (share_cache_updated ? 1 : 0) << 64 | id; }
 
-    typedef eosio::multi_index
+     typedef eosio::multi_index
     < "spends"_n, spending_t,
-        indexed_by<"shopcustidx"_n, const_mem_fun<spending_t, uint128_t,    &spending_t::shop_customer_key>    >,
-        indexed_by<"custidx"_n,     const_mem_fun<spending_t, uint64_t,     &spending_t::by_customer_key>      >,
-        indexed_by<"shopspends"_n,  const_mem_fun<spending_t, checksum256,  &spending_t::by_shop_day_spending> >,
-        indexed_by<"cacheupdt"_n,   const_mem_fun<spending_t, uint128_t,    &spending_t::by_cache_update>      >
+        indexed_by<"ukshopcust"_n,   const_mem_fun<spending_t, uint128_t,    &spending_t::uk_shop_customer>   >,
+        indexed_by<"idxshop"_n,      const_mem_fun<spending_t, uint64_t,     &spending_t::by_shop>            >,
+        indexed_by<"idxcust"_n,      const_mem_fun<spending_t, uint64_t,     &spending_t::by_customer>        >,
+        indexed_by<"idxdayspend"_n,  const_mem_fun<spending_t, checksum256,  &spending_t::by_day_spending>    >,
+        indexed_by<"idxtotspend"_n,  const_mem_fun<spending_t, checksum256,  &spending_t::by_total_spending>  >,
+        indexed_by<"cacheupdt"_n,    const_mem_fun<spending_t, uint128_t,    &spending_t::by_cache_update>    >
     > tbl_t;
 
     EOSLIB_SERIALIZE( spending_t, (id)(shop_id)(customer)(share)(share_cache)(share_cache_updated)(created_at) )
