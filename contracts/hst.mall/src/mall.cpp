@@ -536,97 +536,77 @@ bool hst_mall::_reward_shop(const uint64_t& shop_id) {
 	shop_t shop(shop_id);
 	CHECK( _dbc.get(shop), "Err: shop not found: " + to_string(shop_id) )
 
-	auto shop_share_cache = shop.share_cache;
-	if (shop_share_cache.total_spending.amount == 0 || shop_share_cache.sunshine_share.amount == 0) 
+	if (shop.share_cache.sunshine_share.amount == 0 ||
+	    shop.share.sunshine_share.amount == 0) 
 		return true; //no share for this shop, hence skipping it
-
-	if (shop.share.top_share.amount == 0 && shop.share.sunshine_share.amount == 0)
-		return true;
-
-	// if (_is_today(shop.updated_at, current_time_point()))
-	// 	return true;
-
-	if (shop.top_rewarded_count == 0) {
-		shop.top_reward_count = 2; //TODO: REMOVE ME AFTER EXECUTING ALL SHOPS
-		// shop.last_sunshine_reward_spend_idx.shop_id = 0;
-		shop.share_cache = shop.share;
-		_dbc.set( shop );
-	}
-
-	// check(false, "shop.top_rewarded_count=" + to_string(shop.top_rewarded_count) + " \n" +
-	// 			 "shop.top_reward_count=" + to_string(shop.top_reward_count) );	
-
+ 
 	spending_t::tbl_t spends(_self, _self.value);
-	auto spend_idx 	= spends.get_index<"idxtotspend"_n>();
-	auto spend_key 	= shop.last_sunshine_reward_spend_idx.shop_id == 0 ? spend_index_t::get_first_index(shop_id) : shop.last_sunshine_reward_spend_idx.get_index();
-	auto lower_itr 	= spend_idx.upper_bound( spend_key );
-	auto itr 		= lower_itr;
-	auto now 		= time_point_sec( current_time_point() );
+	
+	auto now = time_point_sec( current_time_point() );
 
-	if (itr->shop_id != shop_id || itr == spend_idx.end()) { //already iterate all spends within the given shop 
-		shop.share.day_spending 	-= shop.share_cache.day_spending;
-		shop.share.sunshine_share 	-= shop.share_cache.sunshine_share;
+	//// >>> reward shop top in one go below
+	if (shop.share_cache.top_share.amount > 0) {
+		auto day_spend_idx = spends.get_index<"idxdayspend"_n>();
+		auto shoptop_reward_avg = shop.share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
+		CHECK( shoptop_reward_avg.amount > 0, "Err: shop_id(" + to_string(shop_id) + ") has 0 shop top reward" )
+		auto spend_key = spend_index_t::get_first_index(shop_id);
+		shop.top_reward_count = 2; //TODO: REMOVE ME AFTER EXECUTING ALL SHOPS
+		for (auto itr = day_spend_idx.upper_bound( spend_key ); itr != day_spend_idx.end(); itr++) {
+			user_t user(itr->customer);
+			CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
+
+			if (shop.top_rewarded_count < shop.top_reward_count) {
+				TRANSFER( _cstate.mall_bank, user.account, shoptop_reward_avg, "top reward by shop-" +  to_string(shop_id) ) /// shop top reward
+				_log_reward( user.account, SHOP_TOP_REWARD, shoptop_reward_avg, now);
+				shop.top_rewarded_count++;
+			} else 
+				break;
+		}
 		shop.share.top_share		-= shop.share_cache.top_share;
+		shop.share_cache.top_share.amount = 0;
 		shop.top_rewarded_count 	= 0;
-		shop.updated_at 			= now;
-
-		shop.share_cache.reset();
-		shop.last_sunshine_reward_spend_idx.reset();
-
 		_dbc.set( shop );
-
-		return true;
 	}
 
-	auto shoptop_reward_avg = shop_share_cache.top_share / shop.top_reward_count; //choose average value, to avoid sum traverse
-	CHECK( shoptop_reward_avg.amount > 0, "Err: shop_id(" + to_string(itr->shop_id) + ") has 0 shop top reward" )
+	//// >>> sunshine rewards in one or multiple transactions
+	auto total_spend_idx = spends.get_index<"idxtotspend"_n>();
+	auto total_spend_key = shop.last_sunshine_reward_spend_idx.shop_id == 0 ? spend_index_t::get_first_index(shop_id) : shop.last_sunshine_reward_spend_idx.get_index();
+	auto itr 		= total_spend_idx.upper_bound( total_spend_key );
+	auto completed 	= false;
 
-	bool processed = false;
-	bool completed = false;
-	for (uint8_t step = 0; itr != spend_idx.end() && step < MAX_STEP; itr++, step++) {
-		if (itr->shop_id != shop_id) { //already iterate all spends within the given shop 
-			completed = true;
-			break;
-		}
+	if (itr->shop_id == shop_id && itr != total_spend_idx.end()) { 
+		for (uint8_t step = 0; itr != total_spend_idx.end() && step < MAX_STEP; itr++, step++) {
+			if (itr->shop_id != shop_id) { //already iterate all spends within the given shop 
+				completed = true;
+				break;
+			}
 
-		shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
-		
-		auto spending_share_cache = itr->share_cache;
-		check(spending_share_cache.total_spending.amount > 0, "Err: zero user total spending");
-		check(spending_share_cache.total_spending.amount <= shop_share_cache.total_spending.amount, "Err: individual spending > total spending for: " + to_string(itr->id) );
-
-		auto sunshine_quant = shop_share_cache.sunshine_share * spending_share_cache.total_spending.amount / 
-								shop_share_cache.total_spending.amount;
-
-		// CHECK( sunshine_quant.amount > 0, "Err: zero sunshine reward \nshop_id: " + to_string(itr->shop_id) + "\n"
-		// 	+ "itr->id: " + to_string(itr->id) + "\n" 
-		// 	+ "share_cache.sunshine_share = " + share_cache.sunshine_share.to_string() + "\n"
-		// 	+ "spending_share_cache.total_spending = " + spending_share_cache.total_spending.to_string() + "\n"
-		// 	+ "share_cache.total_spending = " + share_cache.total_spending.to_string() + "\n"
-		// 	+ "===> sunshine_quant = " + sunshine_quant.to_string() )
-
-		user_t user(itr->customer);
-		CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
-
-		/// 1. Sunshine reward
-		if (sunshine_quant.amount > 0) {
-			TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "sunshine reward by shop-" + to_string(shop_id) )  /// sunshine reward
-			_log_reward( user.account, SHOP_SUNSHINE_REWARD, sunshine_quant, now);
-		}
-
-		/// 2. Shop-top reward
-		// if (shop.top_rewarded_count < shop.top_reward_count) {
-		if (shop.top_rewarded_count < 2) {
-			TRANSFER( _cstate.mall_bank, user.account, shoptop_reward_avg, "top reward by shop-" +  to_string(shop_id) ) /// shop top reward
-			_log_reward( user.account, SHOP_TOP_REWARD, shoptop_reward_avg, now);
-			shop.top_rewarded_count++;
+			shop.last_sunshine_reward_spend_idx = spend_index_t(itr->shop_id, itr->id, itr->share_cache.day_spending);
 			
+			auto spending_share_cache = itr->share_cache;
+			check(spending_share_cache.total_spending.amount > 0, "Err: zero user total spending");
+			check(spending_share_cache.total_spending.amount <= shop.share_cache.total_spending.amount, "Err: individual spending > total spending for: " + to_string(itr->id) );
+
+			auto sunshine_quant = shop.share_cache.sunshine_share * spending_share_cache.total_spending.amount / 
+									shop.share_cache.total_spending.amount;
+
+			// CHECK( sunshine_quant.amount > 0, "Err: zero sunshine reward \nshop_id: " + to_string(itr->shop_id) + "\n"
+			// 	+ "itr->id: " + to_string(itr->id) + "\n" 
+			// 	+ "share_cache.sunshine_share = " + share_cache.sunshine_share.to_string() + "\n"
+			// 	+ "spending_share_cache.total_spending = " + spending_share_cache.total_spending.to_string() + "\n"
+			// 	+ "share_cache.total_spending = " + share_cache.total_spending.to_string() + "\n"
+			// 	+ "===> sunshine_quant = " + sunshine_quant.to_string() )
+
+			user_t user(itr->customer);
+			CHECK( _dbc.get(user), "Err: user not found: " + user.account.to_string() )
+
+			/// 1. Sunshine reward
+			if (sunshine_quant.amount > 0) {
+				TRANSFER( _cstate.mall_bank, user.account, sunshine_quant, "sunshine reward by shop-" + to_string(shop_id) )  /// sunshine reward
+				_log_reward( user.account, SHOP_SUNSHINE_REWARD, sunshine_quant, now);
+			}
 		}
-
-		processed = true;
-	}
-
-	if (!processed || itr == spend_idx.end()) //!processed means nothing to process or empty
+	} else 
 		completed = true;
 
 	if (completed) { //means finished for this shop
