@@ -425,7 +425,7 @@ ACTION hst_mall::init() {
 	// shop_t shop(225);
 	// _dbc.get(shop);
 	// // shop.share.total_spending.amount = 1934550;
-	// shop.cc_id = 510124;
+	// shop.shop_name = "成都市佛果儿小物件工作室";
 	// shop.updated_at = time_point_sec();
 	// _dbc.set(shop);
 
