@@ -296,6 +296,8 @@ struct spending_share_t {
 
 
 /// one_shop-one_customer : one record (each day gets replaced/overwritten)
+
+/// one_shop-one_customer : one record (each day gets replaced/overwritten)
 struct CONTRACT_TBL spending_t {
     uint64_t id;
     uint64_t shop_id;
@@ -304,6 +306,7 @@ struct CONTRACT_TBL spending_t {
     spending_share_t share_cache;
     bool share_cache_updated = false;
     time_point_sec created_at;
+    time_point_sec updated_at;
 
     spending_t() {}
     spending_t(const uint64_t& i): id(i) {}
@@ -323,11 +326,12 @@ struct CONTRACT_TBL spending_t {
 
     ///to derive shop top-N by day (of yesterday)
     checksum256 by_day_spending() const {
+        auto days = updated_at.sec_since_epoch() / seconds_per_day;
         return checksum256::make_from_word_sequence<uint64_t>(
             shop_id,
+            std::numeric_limits<uint64_t>::max() - days,
             std::numeric_limits<uint64_t>::max() - share_cache.day_spending.amount, 
-            id,
-            0ULL);
+            id);
     }
     
     checksum256 by_total_spending() const {
@@ -350,7 +354,7 @@ struct CONTRACT_TBL spending_t {
         indexed_by<"cacheupdt"_n,    const_mem_fun<spending_t, uint128_t,    &spending_t::by_cache_update>    >
     > tbl_t;
 
-    EOSLIB_SERIALIZE( spending_t, (id)(shop_id)(customer)(share)(share_cache)(share_cache_updated)(created_at) )
+    EOSLIB_SERIALIZE( spending_t, (id)(shop_id)(customer)(share)(share_cache)(share_cache_updated)(created_at)(updated_at) )
 };
 
 struct CONTRACT_TBL certification_t {
