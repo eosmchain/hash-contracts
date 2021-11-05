@@ -347,7 +347,7 @@ void hst_mall::_init() {
 ACTION hst_mall::init() {
 
 	require_auth(_self);
-
+	check(false, "not allowed");
 	// auto tspends = tspending_t::tbl_t(_self, _self.value);
 
 	// auto spends = spending_t::tbl_t(_self, _self.value);
